@@ -1,0 +1,25 @@
+{
+  "name": "biblelite",
+  "version": "1.0.0",
+  "description": "This is my CS465 Final Project. I want to create a Bible app that lets users take notes and highlight verses.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MrKleenex12/OfflineBible.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MrKleenex12/OfflineBible/issues"
+  },
+  "homepage": "https://github.com/MrKleenex12/OfflineBible#readme",
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "fastify": "^5.12.8"
+  },
+  "type": "module"
+}
