@@ -40,6 +40,27 @@ const schemas = {
                 c_num: { type: 'integer' }
             }
         }
+    },
+    highlights: {
+        params: {
+            type: 'object',
+            required: ["u_id", "hexcode"],
+            properties: {
+                u_id: { type: 'integer' },
+                hexcode: { type: 'string', pattern: '^#?(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$' }
+            }
+        },
+        body: {
+            type: 'object',
+            required: ["verseIds"],
+            properties: {
+                verseIds: {
+                    type: 'array',
+                    minItems: 1,
+                    items: { type: 'integer', minimum: 1 }
+                }
+            }
+        }
     }
 };
 

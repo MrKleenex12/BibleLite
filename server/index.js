@@ -55,6 +55,25 @@ const userHighlights = db.prepare(`
     ORDER BY h.created_at DESC, v.book_id, v.chapter_num, v.verse_num;
 `);
 
+const insertHighlight = db.prepare(`
+    INSERT into highlights(user_id, color) VALUES(?, ?);
+`);
+
+const insertHighlightVerse = db.prepare(`
+    INSERT INTO highlight_verses(highlight_id, verse_id) VALUES(?, ?);
+`);
+
+const createHighlightWithVerses = db.transaction((userId, color, verseIds) => {
+    const result = insertHighlight.run(userId, color);
+    const highlightId = result.lastInsertRowid;
+
+    for(const id of verseIds) {
+        insertHighlightVerse.run(highlightId, id);
+    }
+
+    return highlightId;
+});
+
 // Create Fastify server instance
 const fastify = Fastify({
     logger: true // turn logger on
@@ -135,12 +154,36 @@ fastify.get('/compare/book/:b_id/chapter/:c_num',
 
 // Get all highlights for a user
 fastify.get('/user/:id/highlights',
-    {schema: schemas.user},
+    { schema: schemas.user },
     (req, reply) => {
         const highlights = userHighlights.all(req.params.id);
         reply.send({ highlights });
     }
 );
+
+// Create one highlight
+fastify.post('/user/:u_id/highlights/color/:hexcode',
+    { schema: schemas.highlights },
+    (req, reply) => {
+        const { u_id, hexcode } = req.params;
+        const { verseIds } = req.body;
+
+        // Validate hexcode into # + 6 digits
+        const digits = hexcode.startsWith('#') ? hexcode.slice(1) : hexcode;
+        const rgb = digits.length <= 4
+            ? [...digits.slice(0, 3)].map((digit) => digit + digit).join('')
+            : digits.slice(0, 6);
+        const color = `#${rgb.toLowerCase()}`;
+
+        // Undo any part unless it all completes
+        const highlightId = createHighlightWithVerses(
+            u_id,
+            color,
+            [...new Set(verseIds)]
+        );
+        
+        reply.code(201).send({ highlightId });
+});
 
 fastify.listen({ port: 8000 }, (err, address) => {
     if(err) {
