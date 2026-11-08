@@ -14,7 +14,7 @@ export default function translationRoutes(fastify, { db }) {
         ORDER BY v.verseNum, t.abbreviation;
     `);
 
-    fastify.get('/translations', (req, reply) => {
+    fastify.get('/', (req, reply) => {
         const translations = selectTranslations.all();
         if (translations.length === 0) {
             return reply.code(404).send({ error: 'Translations not found' });

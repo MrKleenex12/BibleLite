@@ -3,7 +3,7 @@ export default function userRoutes(fastify, { db }) {
         SELECT id, firstName, lastName FROM users;
     `);
 
-    fastify.get('/users', (req, reply) => {
+    fastify.get('/', (req, reply) => {
         const users = selectUsers.all();
         reply.send({ users });
     });

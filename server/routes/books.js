@@ -5,7 +5,7 @@ export default function bookRoutes(fastify, { db }) {
         ORDER BY id;
     `);
 
-    fastify.get('/books', (req, reply) => {
+    fastify.get('/', (req, reply) => {
         const books = selectBooks.all();
         reply.send({ books });
     });

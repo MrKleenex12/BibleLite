@@ -23,7 +23,7 @@ export default function noteRoutes(fastify, { db }) {
         ORDER BY n.createdAt DESC;
     `);
 
-    fastify.get('/user/:id/notes',
+    fastify.get('/user/:id',
     { schema: schemas.user },
     (req, reply) => {
         const id = req.params.id;

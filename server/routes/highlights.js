@@ -32,7 +32,7 @@ export default function highlightRoutes(fastify, { db }) {
         return highlightId;
     });
 
-    fastify.get('/user/:id/highlights',
+    fastify.get('/user/:id',
         { schema: schemas.user },
         (req, reply) => {
             const highlights = userHighlights.all(req.params.id);
@@ -40,7 +40,7 @@ export default function highlightRoutes(fastify, { db }) {
         }
     );
 
-    fastify.post('/user/:u_id/highlights/color/:hexcode',
+    fastify.post('/user/:u_id/color/:hexcode',
         { schema: schemas.highlights },
         (req, reply) => {
             const { u_id, hexcode } = req.params;

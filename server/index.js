@@ -19,12 +19,12 @@ fastify.get('/', (req, reply) => {
     reply.send({ hello: 'world' });
 });
 
-fastify.register(bookRoutes, { db });
-fastify.register(highlightRoutes, { db });
-fastify.register(noteRoutes, { db });
-fastify.register(translationRoutes, { db });
-fastify.register(userRoutes, { db });
-fastify.register(verseRoutes, { db });
+fastify.register(bookRoutes, { db , prefix: '/books' });
+fastify.register(highlightRoutes, { db, prefix: 'highlights' });
+fastify.register(noteRoutes, { db, prefix: '/notes' });
+fastify.register(translationRoutes, { db, prefix: '/translations' });
+fastify.register(userRoutes, { db, prefix: '/users' });
+fastify.register(verseRoutes, { db, prefix: '/verses' });
 
 fastify.listen({ port: 8000 }, (err, address) => {
     if (err) {
