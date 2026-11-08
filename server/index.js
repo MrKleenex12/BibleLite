@@ -11,56 +11,54 @@ db.pragma('foreign_keys = ON');
 // Prepared once at startup so a typo in the SQL crashes the server immediately.
 const selectTranslations = db.prepare(`SELECT id, abbreviation FROM translations;`);
 const selectedChapter = db.prepare(`
-    SELECT id, verse_num, content, word_count
+    SELECT id, verseNum, content, wordCount
     FROM verses
-    WHERE translation_id = ?
-    AND book_id = ?
-    AND chapter_num = ?;
+    WHERE translationId = ?
+    AND bookId = ?
+    AND chapterNum = ?;
 `);
 const selectBooks = db.prepare(`
-    SELECT id, code, name, testament, chapter_count
+    SELECT id, code, name, testament, chapterCount
     FROM books
     ORDER BY id;
 `);
-const selectColors = db.prepare(`SELECT hex, name FROM highlight_colors;`);
-const selectUsers = db.prepare(`SELECT id, first_name, last_name FROM users;`);
+const selectUsers = db.prepare(`SELECT id, firstName, lastName FROM users;`);
 const searchVerses = db.prepare(`
-    SELECT v.id, t.abbreviation, b.name AS book, v.chapter_num, v.verse_num, v.content
+    SELECT v.id, t.abbreviation, b.name AS book, v.chapterNum, v.verseNum, v.content
     FROM verses v
-    JOIN translations t ON t.id = v.translation_id
-    JOIN books b ON b.id = v.book_id
-    WHERE v.translation_id = ?
+    JOIN translations t ON t.id = v.translationId
+    JOIN books b ON b.id = v.bookId
+    WHERE v.translationId = ?
     AND v.content LIKE ? ESCAPE '\\'
-    ORDER BY v.book_id, v.chapter_num, v.verse_num
+    ORDER BY v.bookId, v.chapterNum, v.verseNum
     LIMIT ?;
 `);
 const compareChapter = db.prepare(`
-    SELECT v.verse_num, t.abbreviation, v.content
+    SELECT v.verseNum, t.abbreviation, v.content
     FROM verses v
-    JOIN translations t ON t.id = v.translation_id
-    WHERE v.book_id = ?
-    AND v.chapter_num = ?
-    ORDER BY v.verse_num, t.abbreviation;
+    JOIN translations t ON t.id = v.translationId
+    WHERE v.bookId = ?
+    AND v.chapterNum = ?
+    ORDER BY v.verseNum, t.abbreviation;
 `);
 const userHighlights = db.prepare(`
-    SELECT h.id AS highlight_id, h.color, c.name AS color_name, h.created_at,
-           v.id AS verse_id, t.abbreviation, b.name AS book, v.chapter_num, v.verse_num, v.content
+    SELECT h.id AS highlightId, h.color, h.createdAt,
+           v.id AS verseId, t.abbreviation, b.name AS book, v.chapterNum, v.verseNum, v.content
     FROM highlights h
-    JOIN highlight_colors c ON c.hex = h.color
-    JOIN highlight_verses hv ON hv.highlight_id = h.id
-    JOIN verses v ON v.id = hv.verse_id
-    JOIN translations t ON t.id = v.translation_id
-    JOIN books b ON b.id = v.book_id
-    WHERE h.user_id = ?
-    ORDER BY h.created_at DESC, v.book_id, v.chapter_num, v.verse_num;
+    JOIN highlight_verses hv ON hv.highlightId = h.id
+    JOIN verses v ON v.id = hv.verseId
+    JOIN translations t ON t.id = v.translationId
+    JOIN books b ON b.id = v.bookId
+    WHERE h.userId = ?
+    ORDER BY h.createdAt DESC, v.bookId, v.chapterNum, v.verseNum;
 `);
 
 const insertHighlight = db.prepare(`
-    INSERT into highlights(user_id, color) VALUES(?, ?);
+    INSERT into highlights(userId, color) VALUES(?, ?);
 `);
 
 const insertHighlightVerse = db.prepare(`
-    INSERT INTO highlight_verses(highlight_id, verse_id) VALUES(?, ?);
+    INSERT INTO highlight_verses(highlightId, verseId) VALUES(?, ?);
 `);
 
 const createHighlightWithVerses = db.transaction((userId, color, verseIds) => {
@@ -111,12 +109,6 @@ fastify.get('/books', (req, reply) => {
     reply.send({ books });
 });
 
-// List the highlight palette so the front end can build color swatches
-fastify.get('/colors', (req, reply) => {
-    const colors = selectColors.all();
-    reply.send({ colors });
-});
-
 // List users so the front end can pick one (there is no login)
 fastify.get('/users', (req, reply) => {
     const users = selectUsers.all();
@@ -138,7 +130,7 @@ fastify.get('/search',
     }
 );
 
-// Compare every translation of one chapter; rows are grouped by verse_num on the front end
+// Compare every translation of one chapter; rows are grouped by verseNum on the front end
 fastify.get('/compare/book/:b_id/chapter/:c_num',
     {schema: schemas.compare},
     (req, reply) => {
