@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import Database from "better-sqlite3";
 import bookRoutes from "./routes/books.js";
 import highlightRoutes from "./routes/highlights.js";
+import noteRoutes from "./routes/notes.js";
 import translationRoutes from "./routes/translations.js";
 import userRoutes from "./routes/users.js";
 import verseRoutes from "./routes/verses.js";
@@ -20,6 +21,7 @@ fastify.get('/', (req, reply) => {
 
 fastify.register(bookRoutes, { db });
 fastify.register(highlightRoutes, { db });
+fastify.register(noteRoutes, { db });
 fastify.register(translationRoutes, { db });
 fastify.register(userRoutes, { db });
 fastify.register(verseRoutes, { db });
