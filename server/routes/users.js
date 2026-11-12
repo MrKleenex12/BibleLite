@@ -1,13 +1,8 @@
 import schemas from '../schema.js'
 
 export default function userRoutes(fastify, { db }) {
-    const selectUsers = db.prepare(`
-        SELECT id, firstName, lastName, email FROM users;
-    `);
-
-    const deleteUser = db.prepare(`
-        DELETE FROM users WHERE id = ?;
-    `)
+    const selectUsers = db.prepare('SELECT id, firstName, lastName, email FROM users;');
+    const deleteUser = db.prepare('DELETE FROM users WHERE id = ?;')
 
     fastify.get('/', (req, reply) => {
         const users = selectUsers.all();
