@@ -1,6 +1,14 @@
 // --- Route schemas ---
 
 // Holds every route schema so index.js needs only one import.
+const userIdParams = {
+    type: 'object',
+    required: ['userId'],
+    properties: {
+        userId: { type: 'integer', minimum: 1 }
+    }
+};
+
 const schemas = {
     chapter: {
         params: {
@@ -12,13 +20,8 @@ const schemas = {
             }
         }
     },
-    user: {
-        params: {
-            type: 'object',
-            properties: {
-                id: { type: 'integer' }
-            }
-        }
+    userId: {
+        params: userIdParams
     },
     search: {
         querystring: {
@@ -42,13 +45,7 @@ const schemas = {
         }
     },
     highlights: {
-        params: {
-            type: 'object',
-            required: ["u_id"],
-            properties: {
-                u_id: { type: 'integer' }
-            }
-        },
+        params: userIdParams,
         body: {
             type: 'object',
             required: ["color", "verseIds"],

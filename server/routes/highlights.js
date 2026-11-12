@@ -32,18 +32,18 @@ export default function highlightRoutes(fastify, { db }) {
         return highlightId;
     });
 
-    fastify.get('/user/:id',
-        { schema: schemas.user },
+    fastify.get('/user/:userId',
+        { schema: schemas.userId },
         (req, reply) => {
-            const highlights = userHighlights.all(req.params.id);
+            const highlights = userHighlights.all(req.params.userId);
             reply.send({ highlights });
         }
     );
 
-    fastify.post('/user/:u_id',
+    fastify.post('/user/:userId',
         { schema: schemas.highlights },
         (req, reply) => {
-            const { u_id } = req.params;
+            const { userId } = req.params;
             const { color: hexcode, verseIds } = req.body;
 
             const digits = hexcode.startsWith('#') ? hexcode.slice(1) : hexcode;
@@ -53,7 +53,7 @@ export default function highlightRoutes(fastify, { db }) {
             const color = `#${rgb.toLowerCase()}`;
 
             const highlightId = createHighlightWithVerses(
-                u_id,
+                userId,
                 color,
                 [...new Set(verseIds)]
             );

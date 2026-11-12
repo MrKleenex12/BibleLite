@@ -23,12 +23,12 @@ export default function noteRoutes(fastify, { db }) {
         ORDER BY n.createdAt DESC;
     `);
 
-    fastify.get('/user/:id',
-    { schema: schemas.user },
+    fastify.get('/user/:userId',
+    { schema: schemas.userId },
     (req, reply) => {
-        const id = req.params.id;
+        const { userId } = req.params;
 
-        const notes = userNotes.all(id).map(note => ({
+        const notes = userNotes.all(userId).map(note => ({
             ...note,
             verses: JSON.parse(note.verses)
         }));
