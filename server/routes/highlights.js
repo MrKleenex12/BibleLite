@@ -40,11 +40,11 @@ export default function highlightRoutes(fastify, { db }) {
         }
     );
 
-    fastify.post('/user/:u_id/color/:hexcode',
+    fastify.post('/user/:u_id',
         { schema: schemas.highlights },
         (req, reply) => {
-            const { u_id, hexcode } = req.params;
-            const { verseIds } = req.body;
+            const { u_id } = req.params;
+            const { color: hexcode, verseIds } = req.body;
 
             const digits = hexcode.startsWith('#') ? hexcode.slice(1) : hexcode;
             const rgb = digits.length <= 4

@@ -44,16 +44,16 @@ const schemas = {
     highlights: {
         params: {
             type: 'object',
-            required: ["u_id", "hexcode"],
+            required: ["u_id"],
             properties: {
-                u_id: { type: 'integer' },
-                hexcode: { type: 'string', pattern: '^#?(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$' }
+                u_id: { type: 'integer' }
             }
         },
         body: {
             type: 'object',
-            required: ["verseIds"],
+            required: ["color", "verseIds"],
             properties: {
+                color: { type: 'string', pattern: '^#?(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$' },
                 verseIds: {
                     type: 'array',
                     minItems: 1,
