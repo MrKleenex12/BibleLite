@@ -23,6 +23,16 @@ const schemas = {
     userId: {
         params: userIdParams
     },
+    userHighlight: {
+        params: {
+            type: 'object',
+            required: ['userId', 'highlightId'],
+            properties: {
+                userId: { type: 'integer', minimum: 1 },
+                highlightId: { type: 'integer', minimum: 1 }
+            }
+        }
+    },
     search: {
         querystring: {
             type: 'object',
@@ -58,7 +68,20 @@ const schemas = {
                 }
             }
         }
-    }
+    },
+    highlightVerseState: {
+        body: {
+            type: 'object',
+            required: ['userId', 'highlightId', 'verseId', 'isActive'],
+            additionalProperties: false,
+            properties: {
+                userId: { type: 'integer', minimum: 1 },
+                highlightId: { type: 'integer', minimum: 1 },
+                verseId: { type: 'integer', minimum: 1 },
+                isActive: { type: 'boolean' }
+            }
+        }
+    },
 };
 
 export default schemas;
