@@ -9,6 +9,20 @@ const userIdParams = {
     }
 };
 
+const noteParams = {
+    type: 'object',
+    required: ['userId', 'noteId'],
+    properties: {
+        userId: { type: 'integer', minimum: 1 },
+        noteId: { type: 'integer', minimum: 1 }
+    }
+};
+
+const verseIdArray = {
+    type: 'array',
+    items: { type: 'integer', minimum: 1 }
+};
+
 const schemas = {
     chapter: {
         params: {
@@ -32,6 +46,34 @@ const schemas = {
                 highlightId: { type: 'integer', minimum: 1 }
             }
         }
+    },
+    noteCreate: {
+        params: userIdParams,
+        body: {
+            type: 'object',
+            required: ['content'],
+            additionalProperties: false,
+            properties: {
+                content: { type: 'string' },
+                verseIds: verseIdArray
+            }
+        }
+    },
+    noteUpdate: {
+        params: noteParams,
+        body: {
+            type: 'object',
+            minProperties: 1,
+            additionalProperties: false,
+            properties: {
+                content: { type: 'string' },
+                addVerseIds: verseIdArray,
+                removeVerseIds: verseIdArray
+            }
+        }
+    },
+    noteDelete: {
+        params: noteParams
     },
     search: {
         querystring: {
