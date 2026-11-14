@@ -34,6 +34,12 @@ export default function highlightRoutes(fastify, { db }) {
           )
         RETURNING highlightId, verseId;
     `);
+    const userHighlightReport = db.prepare(`
+        SELECT book, color, highlight_count, verse_count
+        FROM highlight_report
+        WHERE userId = ?
+        ORDER BY book, color;
+    `);
 
     const createHighlightWithVerses = db.transaction((userId, color, verseIds) => {
         const { highlightId, createdAt } = insertHighlight.get(userId, color);
@@ -51,6 +57,15 @@ export default function highlightRoutes(fastify, { db }) {
         (req, reply) => {
             const highlights = userHighlights.all(req.params.userId);
             reply.send({ highlights });
+        }
+    );
+
+    fastify.get('/user/:userId/report',
+        { schema: schemas.userId },
+        (req, reply) => {
+            const { userId } = req.params;
+            const report = userHighlightReport.all(userId);
+            reply.send({ report });
         }
     );
 
