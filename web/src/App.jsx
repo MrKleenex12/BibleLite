@@ -1,104 +1,86 @@
-import { useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import AccountPanel from './AccountPanel.jsx'
+import ChapterReader from './ChapterReader.jsx'
 import './App.css'
 
 function App() {
-  const [mode, setMode] = useState('signup')
-  const [notice, setNotice] = useState('')
-  const isSigningUp = mode === 'signup'
+  const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
+  const [headerSelectorTarget, setHeaderSelectorTarget] = useState(null)
+  const accountDialogRef = useRef(null)
+  const accountPanelRef = useRef(null)
+  const desktopEmailInputRef = useRef(null)
+  const mobileEmailInputRef = useRef(null)
+  const mobileAccountTitleId = useId()
 
-  function changeMode(nextMode) {
-    setMode(nextMode)
-    setNotice('')
+  function handleHeaderLogin() {
+    if (window.matchMedia('(max-width: 900px)').matches) {
+      setIsAccountDialogOpen(true)
+      return
+    }
+
+    accountPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    desktopEmailInputRef.current?.focus({ preventScroll: true })
   }
 
-  function handleSubmit(event) {
-    event.preventDefault()
-    setNotice('Account access is not connected yet.')
-  }
+  useEffect(() => {
+    const dialog = accountDialogRef.current
+    if (!dialog) {
+      return
+    }
+
+    if (isAccountDialogOpen && !dialog.open) {
+      dialog.showModal()
+      mobileEmailInputRef.current?.focus()
+    } else if (!isAccountDialogOpen && dialog.open) {
+      dialog.close()
+    }
+  }, [isAccountDialogOpen])
 
   return (
     <main className="page">
       <header className="site-header">
-        <a className="brand" href="/" aria-label="BibleLite home">BibleLite</a>
-        <nav className="header-actions" aria-label="Account">
-          <button className="text-button" type="button" onClick={() => changeMode('login')}>
-            Log in
-          </button>
-          <button className="small-button" type="button" onClick={() => changeMode('signup')}>
-            Sign up
-          </button>
-        </nav>
+        <a className="brand" href="/" aria-label="BibleLite home">
+          <span className="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 6.5c-2.2-1.6-5.1-1.8-8-.8v12c2.9-1 5.8-.8 8 .8m0-12c2.2-1.6 5.1-1.8 8-.8v12c-2.9-1-5.8-.8-8 .8m0-12v12.8" />
+            </svg>
+          </span>
+          <span>BibleLite</span>
+        </a>
+        <div className="header-reading-controls" ref={setHeaderSelectorTarget} />
+        <button
+          className="header-login-button"
+          type="button"
+          onClick={handleHeaderLogin}
+        >
+          Log in
+        </button>
       </header>
 
-      <section className="welcome">
-        <div className="welcome-copy">
-          <p className="eyebrow">A little space for reflection</p>
-          <h1>Make time for the word.</h1>
-          <p className="intro">
-            Read the Bible at your own pace. Keep your favorite verses and notes together,
-            wherever your reading takes you.
-          </p>
-        </div>
+      <div className="home-layout">
+        <ChapterReader headerSelectorTarget={headerSelectorTarget} />
+        <AccountPanel panelRef={accountPanelRef} emailInputRef={desktopEmailInputRef} />
+      </div>
 
-        <section className="account-card" aria-labelledby="account-title">
-          <div className="card-heading">
-            <h2 id="account-title">{isSigningUp ? 'Create your account' : 'Welcome back'}</h2>
-            <p>{isSigningUp ? 'Get started with BibleLite.' : 'Log in to continue reading.'}</p>
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            {isSigningUp && (
-              <div className="name-fields">
-                <label>
-                  First name
-                  <input autoComplete="given-name" name="firstName" required />
-                </label>
-                <label>
-                  Last name
-                  <input autoComplete="family-name" name="lastName" required />
-                </label>
-              </div>
-            )}
-
-            <label>
-              Email
-              <input autoComplete="email" name="email" type="email" required />
-            </label>
-            <label>
-              Password
-              <input
-                autoComplete={isSigningUp ? 'new-password' : 'current-password'}
-                name="password"
-                type="password"
-                required
-              />
-            </label>
-            {isSigningUp && (
-              <p className="password-warning">
-                Don't reuse a password from another account. Passwords are not handled properly for this final project.
-              </p>
-            )}
-
-            <button className="submit-button" type="submit">
-              {isSigningUp ? 'Create account' : 'Log in'}
-            </button>
-            <p className="form-notice" aria-live="polite">{notice}</p>
-          </form>
-
-          <p className="switch-mode">
-            {isSigningUp ? 'Already have an account?' : 'New to BibleLite?'}{' '}
-            <button
-              className="inline-button"
-              type="button"
-              onClick={() => changeMode(isSigningUp ? 'login' : 'signup')}
-            >
-              {isSigningUp ? 'Log in' : 'Sign up'}
-            </button>
-          </p>
-        </section>
-      </section>
-
-      <footer className="site-footer">A simpler way to stay close to your reading.</footer>
+      <dialog
+        className="account-dialog"
+        id="mobile-account-dialog"
+        ref={accountDialogRef}
+        aria-labelledby={mobileAccountTitleId}
+        onClose={() => setIsAccountDialogOpen(false)}
+      >
+        <button
+          className="dialog-close"
+          type="button"
+          aria-label="Close sign-in"
+          onClick={() => setIsAccountDialogOpen(false)}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
+        <AccountPanel headingId={mobileAccountTitleId} emailInputRef={mobileEmailInputRef} />
+      </dialog>
     </main>
   )
 }
