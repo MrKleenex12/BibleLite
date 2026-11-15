@@ -1,44 +1,217 @@
-.app {
-  width: min(100% - 2rem, 48rem);
-  margin: 0 auto;
-  padding: 4rem 0;
+#root {
+  min-height: 100vh;
 }
 
-.app-header {
-  margin-bottom: 2rem;
+.page {
+  width: min(100% - 3rem, 68rem);
+  min-height: 100vh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 0;
+}
+
+.brand {
+  color: #23332d;
+  font-size: 1.4rem;
+  font-weight: 750;
+  letter-spacing: -0.05em;
+  text-decoration: none;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.text-button,
+.inline-button {
+  padding: 0;
+  border: 0;
+  color: #315d49;
+  background: transparent;
+  font-weight: 650;
+}
+
+.small-button,
+.submit-button {
+  border: 0;
+  border-radius: 0.6rem;
+  color: #fff;
+  background: #315d49;
+  font-weight: 650;
+}
+
+.small-button {
+  padding: 0.65rem 1rem;
+}
+
+.welcome {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(19rem, 25rem);
+  align-items: center;
+  gap: clamp(2rem, 8vw, 7rem);
+  padding: 3rem 0 5rem;
+}
+
+.welcome-copy {
+  max-width: 33rem;
 }
 
 .eyebrow {
-  color: #526477;
-  font-size: 0.8rem;
+  margin-bottom: 1rem;
+  color: #557663;
+  font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-h1,
-h2,
-p {
-  margin-top: 0;
+.welcome-copy h1 {
+  max-width: 10ch;
+  margin: 0 0 1.25rem;
+  color: #26332d;
+  font-size: clamp(2.8rem, 6vw, 4.7rem);
+  letter-spacing: -0.065em;
+  line-height: 1.04;
 }
 
-h1 {
-  margin-bottom: 0.5rem;
-  font-size: clamp(2.5rem, 8vw, 4rem);
+.intro {
+  max-width: 30rem;
+  margin: 0;
+  color: #66736c;
+  font-size: 1.1rem;
+  line-height: 1.7;
 }
 
-h2 {
-  margin-bottom: 0.5rem;
-}
-
-.reading-space {
-  padding: 1.5rem;
-  border: 1px solid #d8dee5;
-  border-radius: 0.75rem;
+.account-card {
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+  border: 1px solid #e3e9e4;
+  border-radius: 1rem;
   background: #fff;
+  box-shadow: 0 1rem 3rem rgb(40 60 48 / 8%);
 }
 
-.reading-space p,
-.app-header > p:last-child {
-  margin-bottom: 0;
+.card-heading {
+  margin-bottom: 1.5rem;
+}
+
+.card-heading h2 {
+  margin: 0 0 0.45rem;
+  color: #26332d;
+  font-size: 1.5rem;
+  letter-spacing: -0.035em;
+}
+
+.card-heading p {
+  margin: 0;
+  color: #758078;
+}
+
+.account-card form,
+.account-card label {
+  display: flex;
+  flex-direction: column;
+}
+
+.account-card form {
+  gap: 1rem;
+}
+
+.account-card label {
+  gap: 0.45rem;
+  color: #46534b;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.account-card input {
+  width: 100%;
+  min-height: 2.8rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #dce3dd;
+  border-radius: 0.5rem;
+  color: #26332d;
+  background: #fff;
+  font: inherit;
+}
+
+.account-card input:focus-visible {
+  outline: 3px solid rgb(49 93 73 / 20%);
+  border-color: #557663;
+}
+
+.name-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.submit-button {
+  min-height: 2.9rem;
+  margin-top: 0.25rem;
+}
+
+.password-warning {
+  margin: -0.5rem 0 0;
+  color: #8b493a;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.submit-button:hover,
+.small-button:hover {
+  background: #264b39;
+}
+
+.form-notice {
+  min-height: 1.25rem;
+  margin: -0.5rem 0 0;
+  color: #8b493a;
+  font-size: 0.85rem;
+}
+
+.switch-mode {
+  margin: 1.25rem 0 0;
+  color: #758078;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.site-footer {
+  padding: 1.5rem 0;
+  border-top: 1px solid #e3e9e4;
+  color: #758078;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .page {
+    width: min(100% - 2rem, 30rem);
+  }
+
+  .welcome {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 2.5rem 0 3rem;
+  }
+
+  .welcome-copy h1 {
+    max-width: 12ch;
+    font-size: clamp(2.6rem, 12vw, 4rem);
+  }
 }
