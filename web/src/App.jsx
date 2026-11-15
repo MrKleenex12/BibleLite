@@ -4,43 +4,35 @@ import ChapterReader from './ChapterReader.jsx'
 import './App.css'
 
 function App() {
-  const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false)
   const [headerSelectorTarget, setHeaderSelectorTarget] = useState(null)
   const [account, setAccount] = useState(null)
-  const accountDialogRef = useRef(null)
-  const accountPanelRef = useRef(null)
-  const desktopEmailInputRef = useRef(null)
-  const mobileEmailInputRef = useRef(null)
-  const mobileAccountTitleId = useId()
+  const accountDropdownRef = useRef(null)
+  const accountDropdownEmailRef = useRef(null)
+  const accountTitleId = useId()
 
   function handleAccountChange(user) {
     setAccount(user)
-    setIsAccountDialogOpen(false)
+    setIsAccountDropdownOpen(false)
   }
 
   function handleHeaderLogin() {
-    if (window.matchMedia('(max-width: 900px)').matches) {
-      setIsAccountDialogOpen(true)
-      return
-    }
-
-    accountPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    desktopEmailInputRef.current?.focus({ preventScroll: true })
+    setIsAccountDropdownOpen((isOpen) => !isOpen)
   }
 
   useEffect(() => {
-    const dialog = accountDialogRef.current
-    if (!dialog) {
+    const dropdown = accountDropdownRef.current
+    if (!dropdown) {
       return
     }
 
-    if (isAccountDialogOpen && !dialog.open) {
-      dialog.showModal()
-      mobileEmailInputRef.current?.focus()
-    } else if (!isAccountDialogOpen && dialog.open) {
-      dialog.close()
+    if (isAccountDropdownOpen && !dropdown.matches(':popover-open')) {
+      dropdown.showPopover()
+      accountDropdownEmailRef.current?.focus()
+    } else if (!isAccountDropdownOpen && dropdown.matches(':popover-open')) {
+      dropdown.hidePopover()
     }
-  }, [isAccountDialogOpen])
+  }, [isAccountDropdownOpen])
 
   return (
     <main className="page">
@@ -57,46 +49,46 @@ function App() {
         <button
           className="header-login-button"
           type="button"
+          aria-expanded={isAccountDropdownOpen}
+          aria-controls="account-dropdown"
           onClick={handleHeaderLogin}
         >
           {account ? 'Account' : 'Log in'}
         </button>
+        <dialog
+          className="account-dropdown"
+          id="account-dropdown"
+          popover="auto"
+          ref={accountDropdownRef}
+          aria-labelledby={accountTitleId}
+          onToggle={(event) => setIsAccountDropdownOpen(event.newState === 'open')}
+        >
+          <button
+            className="dialog-close"
+            type="button"
+            aria-label="Close account dropdown"
+            onClick={() => setIsAccountDropdownOpen(false)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+          <AccountPanel
+            account={account}
+            headingId={accountTitleId}
+            onAccountChange={handleAccountChange}
+            emailInputRef={accountDropdownEmailRef}
+          />
+        </dialog>
       </header>
 
       <div className="home-layout">
-        <ChapterReader headerSelectorTarget={headerSelectorTarget} />
-        <AccountPanel
+        <ChapterReader
           account={account}
-          onAccountChange={handleAccountChange}
-          panelRef={accountPanelRef}
-          emailInputRef={desktopEmailInputRef}
+          headerSelectorTarget={headerSelectorTarget}
+          onRequestLogin={() => setIsAccountDropdownOpen(true)}
         />
       </div>
-
-      <dialog
-        className="account-dialog"
-        id="mobile-account-dialog"
-        ref={accountDialogRef}
-        aria-labelledby={mobileAccountTitleId}
-        onClose={() => setIsAccountDialogOpen(false)}
-      >
-        <button
-          className="dialog-close"
-          type="button"
-          aria-label="Close sign-in"
-          onClick={() => setIsAccountDialogOpen(false)}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m6 6 12 12M18 6 6 18" />
-          </svg>
-        </button>
-        <AccountPanel
-          account={account}
-          headingId={mobileAccountTitleId}
-          onAccountChange={handleAccountChange}
-          emailInputRef={mobileEmailInputRef}
-        />
-      </dialog>
     </main>
   )
 }

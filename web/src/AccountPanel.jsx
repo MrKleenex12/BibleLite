@@ -28,7 +28,6 @@ function AccountPanel({
   account,
   headingId,
   onAccountChange,
-  panelRef,
   emailInputRef,
 }) {
   const [mode, setMode] = useState('login')
@@ -74,7 +73,7 @@ function AccountPanel({
   }
 
   return (
-    <aside className="account-panel" ref={panelRef}>
+    <aside className="account-panel">
       <section className="account-card" aria-labelledby={titleId}>
         <div className="card-heading">
           <h2 id={titleId}>

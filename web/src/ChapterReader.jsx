@@ -1,6 +1,44 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
+const HIGHLIGHT_COLORS = [
+  { name: 'Yellow', value: '#ffe680' },
+  { name: 'Green', value: '#bfe7c2' },
+  { name: 'Blue', value: '#b8d9f5' },
+  { name: 'Pink', value: '#f5bdd0' },
+  { name: 'Orange', value: '#f7c89b' },
+  { name: 'Purple', value: '#d9c6f3' },
+  { name: 'Teal', value: '#a9e3d8' },
+  { name: 'Coral', value: '#f5b7a7' },
+]
+
+function formatVerseNumbers(verses) {
+  const verseNumbers = [...new Set(verses.map((verse) => verse.verseNum))]
+    .sort((left, right) => left - right)
+
+  if (verseNumbers.length === 0) {
+    return ''
+  }
+
+  const ranges = []
+  let start = verseNumbers[0]
+  let end = start
+
+  for (const verseNumber of verseNumbers.slice(1)) {
+    if (verseNumber === end + 1) {
+      end = verseNumber
+      continue
+    }
+
+    ranges.push(start === end ? String(start) : `${start}–${end}`)
+    start = verseNumber
+    end = verseNumber
+  }
+
+  ranges.push(start === end ? String(start) : `${start}–${end}`)
+  return ranges.join(', ')
+}
+
 async function getJson(path, signal) {
   const response = await fetch(`/api${path}`, { signal })
   const data = await response.json()
@@ -12,7 +50,7 @@ async function getJson(path, signal) {
   return data
 }
 
-function ChapterReader({ headerSelectorTarget }) {
+function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
   const [books, setBooks] = useState([])
   const [translations, setTranslations] = useState([])
   const [selectedBookId, setSelectedBookId] = useState('')
@@ -24,6 +62,13 @@ function ChapterReader({ headerSelectorTarget }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [optionsError, setOptionsError] = useState('')
   const [chapterError, setChapterError] = useState('')
+  const [verseSelection, setVerseSelection] = useState({ passageKey: '', ids: new Set() })
+  const [savedHighlightState, setSavedHighlightState] = useState({ userId: null, colors: {} })
+  const [highlightColor, setHighlightColor] = useState(HIGHLIGHT_COLORS[0].value)
+  const [isSavingHighlight, setIsSavingHighlight] = useState(false)
+  const [highlightNotice, setHighlightNotice] = useState('')
+  const [highlightError, setHighlightError] = useState('')
+  const [highlightErrorUserId, setHighlightErrorUserId] = useState(null)
   const pickerDialogRef = useRef(null)
   const pickerFirstSelectRef = useRef(null)
   const selectorId = useId()
@@ -103,12 +148,59 @@ function ChapterReader({ headerSelectorTarget }) {
     return () => controller.abort()
   }, [selectedBookId, selectedTranslationId, chapterNumber])
 
+  useEffect(() => {
+    if (!account?.id) {
+      return undefined
+    }
+
+    const controller = new AbortController()
+    const userId = String(account.id)
+
+    async function loadHighlights() {
+      try {
+        const data = await getJson(`/highlights/user/${userId}`, controller.signal)
+        if (!data || !Array.isArray(data.highlights)) {
+          throw new Error('The saved highlights response was not in the expected format.')
+        }
+
+        const colors = {}
+        for (const highlight of data.highlights) {
+          if (highlight.isActive && colors[highlight.verseId] === undefined) {
+            colors[highlight.verseId] = highlight.color
+          }
+        }
+        setSavedHighlightState({ userId, colors })
+        setHighlightErrorUserId(userId)
+        setHighlightError('')
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          setHighlightErrorUserId(userId)
+          setHighlightError(error.message)
+        }
+      }
+    }
+
+    void loadHighlights()
+    return () => controller.abort()
+  }, [account?.id])
+
   const selectedBook = books.find((book) => String(book.id) === selectedBookId)
   const selectedTranslation = translations.find(
     (translation) => String(translation.id) === selectedTranslationId,
   )
   const lastChapter = selectedBook?.chapterCount ?? 1
   const referenceLabel = `${selectedBook?.name || 'Bible'} chapter ${chapterNumber}, ${selectedTranslation?.abbreviation || 'translation'}`
+  const passageKey = `${selectedTranslationId}:${selectedBookId}:${chapterNumber}`
+  const selectedVerseIds = verseSelection.passageKey === passageKey
+    ? verseSelection.ids
+    : new Set()
+  const selectedVerses = verses.filter((verse) => selectedVerseIds.has(verse.id))
+  const savedVerseColors = savedHighlightState.userId === String(account?.id)
+    ? savedHighlightState.colors
+    : {}
+  const currentHighlightError = highlightErrorUserId === String(account?.id)
+    ? highlightError
+    : ''
 
   useEffect(() => {
     const dialog = pickerDialogRef.current
@@ -124,13 +216,97 @@ function ChapterReader({ headerSelectorTarget }) {
     }
   }, [isPickerOpen])
 
+  function clearVerseSelection() {
+    setVerseSelection({ passageKey: '', ids: new Set() })
+  }
+
   function changeBook(event) {
     setSelectedBookId(event.target.value)
     setChapterNumber(1)
+    clearVerseSelection()
+  }
+
+  function changeChapter(event) {
+    setChapterNumber(Number(event.target.value))
+    clearVerseSelection()
+  }
+
+  function changeTranslation(event) {
+    setSelectedTranslationId(event.target.value)
+    clearVerseSelection()
   }
 
   function moveChapter(amount) {
     setChapterNumber((current) => Math.min(lastChapter, Math.max(1, current + amount)))
+    clearVerseSelection()
+  }
+
+  function toggleVerseSelection(verseId) {
+    setVerseSelection((current) => {
+      const next = new Set(current.passageKey === passageKey ? current.ids : [])
+      if (next.has(verseId)) {
+        next.delete(verseId)
+      } else {
+        next.add(verseId)
+      }
+      return { passageKey, ids: next }
+    })
+    setHighlightNotice('')
+    setHighlightError('')
+  }
+
+  async function saveHighlight(event) {
+    event.preventDefault()
+    if (!account?.id || selectedVerseIds.size === 0 || isSavingHighlight) {
+      return
+    }
+
+    const userId = String(account.id)
+    const verseIds = [...selectedVerseIds]
+    setIsSavingHighlight(true)
+    setHighlightNotice('')
+    setHighlightError('')
+
+    try {
+      const response = await fetch(`/api/highlights/user/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ color: highlightColor, verseIds }),
+      })
+
+      let data
+      try {
+        data = await response.json()
+      } catch {
+        throw new Error('The server returned an invalid response.')
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.error || `Request failed (${response.status}).`)
+      }
+      if (!data?.highlightId) {
+        throw new Error('The server did not confirm the saved highlight.')
+      }
+
+      setSavedHighlightState((current) => (
+        current.userId === userId
+          ? {
+              ...current,
+              colors: {
+                ...current.colors,
+                ...Object.fromEntries(verseIds.map((verseId) => [verseId, highlightColor])),
+              },
+            }
+          : current
+      ))
+      setVerseSelection({ passageKey, ids: new Set() })
+      setHighlightNotice(`Saved highlight for ${verseIds.length} ${verseIds.length === 1 ? 'verse' : 'verses'}.`)
+    } catch (error) {
+      setHighlightErrorUserId(userId)
+      setHighlightError(error.message)
+    } finally {
+      setIsSavingHighlight(false)
+    }
   }
 
   function renderHeaderPill() {
@@ -154,7 +330,7 @@ function ChapterReader({ headerSelectorTarget }) {
           id={`${selectorId}-header-chapter`}
           className="pill-select chapter-select"
           value={chapterNumber}
-          onChange={(event) => setChapterNumber(Number(event.target.value))}
+          onChange={changeChapter}
           disabled={!selectedBook || Boolean(optionsError)}
         >
           {Array.from({ length: lastChapter }, (_, index) => index + 1).map((chapter) => (
@@ -169,7 +345,7 @@ function ChapterReader({ headerSelectorTarget }) {
           id={`${selectorId}-header-translation`}
           className="pill-select translation-select"
           value={selectedTranslationId}
-          onChange={(event) => setSelectedTranslationId(event.target.value)}
+          onChange={changeTranslation}
           disabled={isLoadingOptions || Boolean(optionsError)}
         >
           {translations.map((translation) => (
@@ -205,7 +381,7 @@ function ChapterReader({ headerSelectorTarget }) {
           <select
             id={`${selectorId}-picker-chapter`}
             value={chapterNumber}
-            onChange={(event) => setChapterNumber(Number(event.target.value))}
+            onChange={changeChapter}
             disabled={!selectedBook || Boolean(optionsError)}
           >
             {Array.from({ length: lastChapter }, (_, index) => index + 1).map((chapter) => (
@@ -219,7 +395,7 @@ function ChapterReader({ headerSelectorTarget }) {
           <select
             id={`${selectorId}-picker-translation`}
             value={selectedTranslationId}
-            onChange={(event) => setSelectedTranslationId(event.target.value)}
+            onChange={changeTranslation}
             disabled={isLoadingOptions || Boolean(optionsError)}
           >
             {translations.map((translation) => (
@@ -259,7 +435,10 @@ function ChapterReader({ headerSelectorTarget }) {
         headerSelectorTarget,
       )}
 
-      <section className="reader" aria-labelledby="chapter-title">
+      <section
+        className={`reader${selectedVerseIds.size > 0 ? ' reader-with-highlight-dock' : ''}`}
+        aria-labelledby="chapter-title"
+      >
         <div className="reader-intro">
           <h1 id="chapter-title">
             {selectedBook ? `${selectedBook.name} ${chapterNumber}` : 'A moment in the word'}
@@ -316,16 +495,98 @@ function ChapterReader({ headerSelectorTarget }) {
           {!isLoadingOptions && !isLoadingChapter && !chapterError && verses.length > 0 && (
             <div className="verses" aria-busy={isLoadingChapter}>
               {verses.map((verse) => (
-                <p className="verse" key={verse.id}>
-                  <sup className="verse-number" aria-label={`Verse ${verse.verseNum}`}>
+                <button
+                  className={`verse${savedVerseColors[verse.id] ? ' verse-highlighted' : ''}${selectedVerseIds.has(verse.id) ? ' verse-selected' : ''}`}
+                  key={verse.id}
+                  type="button"
+                  aria-pressed={selectedVerseIds.has(verse.id)}
+                  disabled={isSavingHighlight}
+                  style={savedVerseColors[verse.id]
+                    ? { '--verse-highlight-color': savedVerseColors[verse.id] }
+                    : undefined}
+                  onClick={() => toggleVerseSelection(verse.id)}
+                >
+                  <sup className="verse-number">
                     {verse.verseNum}
                   </sup>
-                  {verse.content}
-                </p>
+                  <span>{verse.content}</span>
+                </button>
               ))}
             </div>
           )}
         </article>
+
+        {currentHighlightError && (
+          <p className="highlight-feedback error-message" role="alert">
+            Could not save or load highlights: {currentHighlightError}
+          </p>
+        )}
+        {highlightNotice && (
+          <p className="highlight-feedback" role="status" aria-live="polite">
+            {highlightNotice}
+          </p>
+        )}
+        {selectedVerseIds.size > 0 && (
+          <form
+            className="highlight-dock"
+            aria-label="Highlight selected verses"
+            aria-busy={isSavingHighlight}
+            onSubmit={saveHighlight}
+          >
+            <div className="highlight-dock-heading">
+              <p className="highlight-count">
+                {selectedVerseIds.size} {selectedVerseIds.size === 1 ? 'verse' : 'verses'} selected
+              </p>
+              <button
+                className="highlight-clear-button"
+                type="button"
+                onClick={() => setVerseSelection({ passageKey, ids: new Set() })}
+                disabled={isSavingHighlight}
+              >
+                Clear
+              </button>
+            </div>
+            <p className="highlight-selected-verses">
+              {selectedBook?.name} {chapterNumber}:{formatVerseNumbers(selectedVerses)}
+            </p>
+            <fieldset className="highlight-colors">
+              <legend>Highlight color</legend>
+              <div className="highlight-color-options">
+                {HIGHLIGHT_COLORS.map((color) => (
+                  <button
+                    className="highlight-color-option"
+                    key={color.value}
+                    type="button"
+                    aria-label={`${color.name} highlight`}
+                    aria-pressed={highlightColor === color.value}
+                    onClick={() => setHighlightColor(color.value)}
+                  >
+                    <span
+                      className="highlight-color-swatch"
+                      style={{ backgroundColor: color.value }}
+                    />
+                    <span>{color.name}</span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <div className="highlight-dock-actions">
+              {account ? (
+                <button className="highlight-save-button" type="submit" disabled={isSavingHighlight}>
+                  {isSavingHighlight ? 'Saving…' : 'Save highlight'}
+                </button>
+              ) : (
+                <button
+                  className="highlight-save-button"
+                  type="button"
+                  onClick={onRequestLogin}
+                >
+                  Log in to save
+                </button>
+              )}
+            </div>
+          </form>
+        )}
 
         <dialog
           className="chapter-picker-dialog"
