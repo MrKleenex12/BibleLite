@@ -13,7 +13,7 @@
   inset-block-start: 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 34rem) minmax(0, 1fr);
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 34rem) minmax(max-content, 1fr);
   align-items: center;
   gap: 1.25rem;
   min-height: 3rem;
@@ -138,11 +138,16 @@
 
 .verse-search-form select {
   min-height: 2.75rem;
-  padding: 0.6rem 0.75rem;
+  padding: 0.6rem 2.25rem 0.6rem 0.75rem;
   border: 1px solid #c8cec4;
   border-radius: 0.55rem;
   color: #26332d;
-  background: #fff;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 6 5 5 5-5' fill='none' stroke='%23425444' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-position: right 0.8rem center;
+  background-repeat: no-repeat;
+  background-size: 0.8rem;
+  appearance: none;
   font: inherit;
 }
 
@@ -1520,4 +1525,102 @@ dialog:modal {
     min-width: 2.75rem;
     min-height: 2.75rem;
   }
+}
+
+.compare-verses {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.compare-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+
+.compare-toolbar > select:first-child {
+  justify-self: start;
+}
+
+.compare-toolbar > select:last-child {
+  justify-self: end;
+}
+
+.compare-passage {
+  display: flex;
+  gap: 0.6rem;
+}
+
+@media (max-width: 40rem) {
+  .compare-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .compare-passage {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+}
+
+/* Traditional parallel layout: verse text on both sides, verse number in a shared centre gutter. */
+.compare-verses li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3rem minmax(0, 1fr);
+  gap: 0 1rem;
+}
+
+.compare-verses li > strong {
+  grid-column: 2;
+  grid-row: 1;
+  text-align: center;
+  color: #6b7a6d;
+}
+
+.compare-verses li > p {
+  grid-row: 1;
+  margin: 0;
+}
+
+.compare-verses li > p:nth-of-type(1) {
+  grid-column: 1;
+}
+
+.compare-verses li > p:nth-of-type(2) {
+  grid-column: 3;
+}
+
+/* The toolbar already names each side, so the inline label only appears when the columns stack. */
+.compare-verses li > p > span {
+  display: none;
+  margin-inline-end: 0.5rem;
+  font-weight: 600;
+}
+
+@media (max-width: 40rem) {
+  .compare-verses li {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+  }
+
+  .compare-verses li > strong,
+  .compare-verses li > p:nth-of-type(n) {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .compare-verses li > strong {
+    text-align: start;
+  }
+
+  .compare-verses li > p > span {
+    display: inline;
+  }
+}
+
+.compare-page {
+  display: grid;
+  gap: 1.5rem;
 }

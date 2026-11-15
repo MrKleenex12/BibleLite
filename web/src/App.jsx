@@ -1,16 +1,22 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import AccountPanel from './AccountPanel.jsx'
 import ChapterReader from './ChapterReader.jsx'
+import ComparePage from './ComparePage.jsx'
 import SearchPage from './SearchPage.jsx'
 import './App.css'
 
 // --- Page routing ---
 
 const SEARCH_HASH = '#/search'
+const COMPARE_HASH = '#/compare'
 
 // Reads which page the URL hash selects.
 function readPageFromHash() {
-  return window.location.hash === SEARCH_HASH ? 'search' : 'reader'
+  if (window.location.hash === SEARCH_HASH) {
+    return 'search'
+  }
+
+  return window.location.hash === COMPARE_HASH ? 'compare' : 'reader'
 }
 
 function App() {
@@ -76,6 +82,7 @@ function App() {
         </a>
         <div className="header-reading-controls" ref={setHeaderSelectorTarget} />
         <div className="header-actions">
+          <a className="header-search-link" href={COMPARE_HASH}>Compare</a>
           <a className="header-search-link" href={SEARCH_HASH}>Search</a>
           <button
             className="header-login-button"
@@ -117,6 +124,8 @@ function App() {
       <div className="home-layout">
         {page === 'search' ? (
           <SearchPage onSelectResult={openPassage} />
+        ) : page === 'compare' ? (
+          <ComparePage />
         ) : (
           <ChapterReader
             account={account}
