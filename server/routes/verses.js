@@ -10,7 +10,7 @@ export default function verseRoutes(fastify, { db }) {
     `);
 
     const searchVerses = db.prepare(`
-        SELECT v.id, t.abbreviation, b.name AS book, v.chapterNum, v.verseNum, v.content
+        SELECT v.id, t.abbreviation, v.bookId, b.name AS book, v.chapterNum, v.verseNum, v.content
         FROM verses v
         JOIN translations t ON t.id = v.translationId
         JOIN books b ON b.id = v.bookId

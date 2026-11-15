@@ -138,12 +138,13 @@ async function postJson(path, body) {
   return mutateJson(path, 'POST', body)
 }
 
-function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
+function ChapterReader({ account, headerSelectorTarget, onRequestLogin, passage }) {
+  const [initialPassage] = useState(passage)
   const [books, setBooks] = useState([])
   const [translations, setTranslations] = useState([])
   const [selectedBookId, setSelectedBookId] = useState('')
   const [selectedTranslationId, setSelectedTranslationId] = useState('')
-  const [chapterNumber, setChapterNumber] = useState(1)
+  const [chapterNumber, setChapterNumber] = useState(initialPassage?.chapterNum ?? 1)
   const [verses, setVerses] = useState([])
   const [isLoadingOptions, setIsLoadingOptions] = useState(true)
   const [isLoadingChapter, setIsLoadingChapter] = useState(false)
@@ -202,8 +203,10 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
 
         setBooks(bookData.books)
         setTranslations(translationData.translations)
-        setSelectedBookId(String(bookData.books[0].id))
-        setSelectedTranslationId(String(translationData.translations[0].id))
+        setSelectedBookId(String(initialPassage?.bookId ?? bookData.books[0].id))
+        setSelectedTranslationId(
+          String(initialPassage?.translationId ?? translationData.translations[0].id),
+        )
       } catch (error) {
         if (error.name !== 'AbortError') {
           setOptionsError(error.message)
@@ -217,7 +220,7 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
 
     loadOptions()
     return () => controller.abort()
-  }, [])
+  }, [initialPassage])
 
   useEffect(() => {
     if (!selectedBookId || !selectedTranslationId) {
