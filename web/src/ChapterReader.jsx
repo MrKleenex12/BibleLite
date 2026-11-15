@@ -12,6 +12,31 @@ const HIGHLIGHT_COLORS = [
   { name: 'Coral', value: '#f5b7a7' },
 ]
 
+function normalizeSavedItemTimestamp(timestamp) {
+  if (typeof timestamp !== 'string') {
+    return ''
+  }
+
+  const isoTimestamp = timestamp.replace(' ', 'T')
+  return /(?:Z|[+-]\d{2}:?\d{2})$/i.test(isoTimestamp)
+    ? isoTimestamp
+    : `${isoTimestamp}Z`
+}
+
+function formatSavedItemDate(timestamp) {
+  const isoTimestamp = normalizeSavedItemTimestamp(timestamp)
+  const date = new Date(isoTimestamp)
+
+  if (!isoTimestamp || Number.isNaN(date.getTime())) {
+    return timestamp || ''
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
 function formatVerseNumbers(verses) {
   const verseNumbers = [...new Set(verses.map((verse) => verse.verseNum))]
     .sort((left, right) => left - right)
@@ -127,9 +152,17 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
   const [highlightError, setHighlightError] = useState('')
   const [highlightErrorUserId, setHighlightErrorUserId] = useState(null)
   const pickerDialogRef = useRef(null)
+  const savedItemsDialogRef = useRef(null)
   const pickerFirstSelectRef = useRef(null)
+  const [savedItemsState, setSavedItemsState] = useState({
+    userId: null,
+    highlights: [],
+    notes: [],
+  })
+  const [selectedSavedVerse, setSelectedSavedVerse] = useState(null)
   const selectorId = useId()
   const pickerTitleId = useId()
+  const savedItemsTitleId = useId()
   const noteEditorId = useId()
 
   useEffect(() => {
@@ -219,19 +252,30 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
     const controller = new AbortController()
     const userId = String(account.id)
 
-    async function loadHighlights() {
+    async function loadSavedItems() {
       try {
-        const data = await getJson(`/highlights/user/${userId}`, controller.signal)
-        if (!data || !Array.isArray(data.highlights)) {
+        const [highlightData, noteData] = await Promise.all([
+          getJson(`/highlights/user/${userId}`, controller.signal),
+          getJson(`/notes/user/${userId}`, controller.signal),
+        ])
+        if (!Array.isArray(highlightData?.highlights)) {
           throw new Error('The saved highlights response was not in the expected format.')
+        }
+        if (!Array.isArray(noteData?.notes)) {
+          throw new Error('The saved notes response was not in the expected format.')
         }
 
         const colors = {}
-        for (const highlight of data.highlights) {
+        for (const highlight of highlightData.highlights) {
           if (highlight.isActive && colors[highlight.verseId] === undefined) {
             colors[highlight.verseId] = highlight.color
           }
         }
+        setSavedItemsState({
+          userId,
+          highlights: highlightData.highlights,
+          notes: noteData.notes,
+        })
         setSavedHighlightState({ userId, colors })
         setHighlightErrorUserId(userId)
         setHighlightError('')
@@ -243,7 +287,7 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
       }
     }
 
-    void loadHighlights()
+    void loadSavedItems()
     return () => controller.abort()
   }, [account?.id])
 
@@ -271,6 +315,9 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
   const savedVerseColors = savedHighlightState.userId === String(account?.id)
     ? savedHighlightState.colors
     : {}
+  const savedItems = savedItemsState.userId === String(account?.id)
+    ? savedItemsState
+    : { highlights: [], notes: [] }
   const currentHighlightError = highlightErrorUserId === String(account?.id)
     ? highlightError
     : ''
@@ -288,6 +335,39 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
       dialog.close()
     }
   }, [isPickerOpen])
+
+  useEffect(() => {
+    const dialog = savedItemsDialogRef.current
+    if (!dialog) {
+      return
+    }
+
+    if (selectedSavedVerse && !dialog.open) {
+      dialog.showModal()
+    } else if (!selectedSavedVerse && dialog.open) {
+      dialog.close()
+    }
+  }, [selectedSavedVerse])
+
+  function getSavedItemsForVerse(verseId) {
+    const highlights = savedItems.highlights.filter((highlight) => highlight.verseId === verseId)
+    const notes = savedItems.notes.filter((note) => (
+        note.verses.some((noteVerse) => noteVerse.id === verseId)
+      ))
+    const items = [
+      ...highlights.map((highlight) => ({ ...highlight, itemType: 'highlight' })),
+      ...notes.map((note) => ({ ...note, itemType: 'note' })),
+    ]
+
+    return {
+      highlights,
+      notes,
+      items: items.sort((left, right) => (
+        new Date(normalizeSavedItemTimestamp(right.createdAt)).getTime()
+        - new Date(normalizeSavedItemTimestamp(left.createdAt)).getTime()
+      )),
+    }
+  }
 
   function clearVerseSelection() {
     setVerseSelection({ passageKey: '', ids: new Set() })
@@ -412,6 +492,26 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
           },
         }
       ))
+      const savedHighlights = selectedVerses.map((verse) => ({
+        highlightId: data.highlightId,
+        color: highlightColor,
+        createdAt: data.createdAt,
+        isActive: 1,
+        verseId: verse.id,
+        abbreviation: selectedTranslation?.abbreviation,
+        book: selectedBook?.name,
+        chapterNum: verse.chapterNum,
+        verseNum: verse.verseNum,
+        content: verse.content,
+      }))
+      setSavedItemsState((current) => ({
+        userId,
+        highlights: [
+          ...(current.userId === userId ? current.highlights : []),
+          ...savedHighlights,
+        ],
+        notes: current.userId === userId ? current.notes : [],
+      }))
       setVerseSelection({ passageKey, ids: new Set() })
       setHighlightNotice(`Saved highlight for ${verseIds.length} ${verseIds.length === 1 ? 'verse' : 'verses'}.`)
     } catch (error) {
@@ -472,10 +572,48 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
               ...Object.fromEntries(verseIds.map((verseId) => [verseId, highlightColor])),
             },
           }))
+          setSavedItemsState((current) => ({
+            userId,
+            highlights: [
+              ...(current.userId === userId ? current.highlights : []),
+              ...noteVerseEntries.map((verse) => ({
+                highlightId: highlightData.highlightId,
+                color: highlightColor,
+                createdAt: highlightData.createdAt,
+                isActive: 1,
+                verseId: verse.id,
+                abbreviation: verse.abbreviation,
+                book: verse.bookName,
+                chapterNum: verse.chapterNum,
+                verseNum: verse.verseNum,
+                content: verse.content,
+              })),
+            ],
+            notes: current.userId === userId ? current.notes : [],
+          }))
         } catch (error) {
           highlightSaveError = error.message
         }
       }
+
+      setSavedItemsState((current) => ({
+        userId,
+        highlights: current.userId === userId ? current.highlights : [],
+        notes: [
+          ...(current.userId === userId ? current.notes : []),
+          {
+            id: data.noteId,
+            content,
+            createdAt: data.createdAt,
+            verses: noteVerseEntries.map((verse) => ({
+              id: verse.id,
+              content: verse.content,
+              chapterNum: verse.chapterNum,
+              verseNum: verse.verseNum,
+            })),
+          },
+        ],
+      }))
 
       setIsNoteEditorOpen(false)
       setNoteVerseEntries([])
@@ -680,35 +818,57 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
           )}
           {!isLoadingOptions && !isLoadingChapter && !chapterError && verses.length > 0 && (
             <div className="verses" aria-busy={isLoadingChapter}>
-              {verses.map((verse) => (
-                <button
-                  className={`verse${savedVerseColors[verse.id] ? ' verse-highlighted' : ''}${(isNoteEditorOpen
-                    ? noteVerseEntries.some((entry) => entry.id === verse.id)
-                    : selectedVerseIds.has(verse.id)) ? ' verse-selected' : ''}`}
-                  key={verse.id}
-                  type="button"
-                  aria-pressed={isNoteEditorOpen
-                    ? noteVerseEntries.some((entry) => entry.id === verse.id)
-                    : selectedVerseIds.has(verse.id)}
-                  disabled={isSavingHighlight || isSavingNote}
-                  style={savedVerseColors[verse.id]
-                    ? { '--verse-highlight-color': savedVerseColors[verse.id] }
-                    : undefined}
-                  onClick={() => toggleVerseSelection(verse)}
-                >
-                  <sup className="verse-number">
-                    {verse.verseNum}
-                  </sup>
-                  <span>{verse.content}</span>
-                </button>
-              ))}
+              {verses.map((verse) => {
+                const verseSavedItems = getSavedItemsForVerse(verse.id)
+                const savedItemCount = verseSavedItems.highlights.length + verseSavedItems.notes.length
+                const isSelected = isNoteEditorOpen
+                  ? noteVerseEntries.some((entry) => entry.id === verse.id)
+                  : selectedVerseIds.has(verse.id)
+
+                return (
+                  <div
+                    className={`verse-row${savedVerseColors[verse.id] ? ' verse-highlighted' : ''}${isSelected ? ' verse-selected' : ''}`}
+                    key={verse.id}
+                    style={savedVerseColors[verse.id]
+                      ? { '--verse-highlight-color': savedVerseColors[verse.id] }
+                      : undefined}
+                  >
+                    <button
+                      className="verse"
+                      type="button"
+                      aria-pressed={isSelected}
+                      disabled={isSavingHighlight || isSavingNote}
+                      onClick={() => toggleVerseSelection(verse)}
+                    >
+                      <sup className="verse-number">{verse.verseNum}</sup>
+                      {savedItemCount > 0 && (
+                        <span className="verse-number-marker-space" aria-hidden="true" />
+                      )}
+                      <span>{verse.content}</span>
+                    </button>
+                    {savedItemCount > 0 && (
+                      <button
+                        className="verse-saved-items-trigger"
+                        type="button"
+                        aria-label={`View ${verseSavedItems.highlights.length} saved ${verseSavedItems.highlights.length === 1 ? 'highlight' : 'highlights'} and ${verseSavedItems.notes.length} ${verseSavedItems.notes.length === 1 ? 'note' : 'notes'} for ${selectedBook?.name} ${chapterNumber}:${verse.verseNum}`}
+                        style={{
+                          left: `calc(0.5rem + ${String(verse.verseNum).length * 0.38}em + 0.34rem)`,
+                        }}
+                        onClick={() => setSelectedSavedVerse(verse)}
+                      >
+                        <span className="verse-saved-items-square" aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </article>
 
         {currentHighlightError && (
           <p className="highlight-feedback error-message" role="alert">
-            Could not save or load highlights: {currentHighlightError}
+            Could not save or load saved highlights and notes: {currentHighlightError}
           </p>
         )}
         {highlightNotice && (
@@ -1006,6 +1166,67 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
                 Add verse
               </button>
             )}
+          </div>
+        </dialog>
+
+        <dialog
+          className="saved-items-dialog"
+          ref={savedItemsDialogRef}
+          aria-labelledby={savedItemsTitleId}
+          onClose={() => setSelectedSavedVerse(null)}
+        >
+          <div className="saved-items-card">
+            <div className="chapter-picker-heading">
+              <h2 id={savedItemsTitleId}>
+                {selectedBook?.name} {chapterNumber}:{selectedSavedVerse?.verseNum} saved items
+              </h2>
+              <form method="dialog">
+                <button className="chapter-picker-close" type="submit" autoFocus>
+                  Close
+                </button>
+              </form>
+            </div>
+            {selectedSavedVerse && (() => {
+              const verseSavedItems = getSavedItemsForVerse(selectedSavedVerse.id)
+              return (
+                <ul className="saved-items-list">
+                  {verseSavedItems.items.map((item, index) => (
+                    <li key={`${item.itemType}-${item.itemType === 'note' ? item.id : item.highlightId}-${index}`}>
+                      {item.itemType === 'highlight' ? (
+                        <span
+                          className="saved-item-color"
+                          style={{ backgroundColor: item.color }}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <span className="saved-item-note-icon" aria-hidden="true">N</span>
+                      )}
+                      <div>
+                        <p className="saved-item-type">
+                          {item.itemType === 'highlight' ? 'Highlight' : 'Note'}
+                        </p>
+                        {item.itemType === 'highlight' ? (
+                          <p className="saved-item-detail">
+                            {item.color}
+                            {item.isActive ? ' · Shown on verse' : ' · Hidden on verse'}
+                          </p>
+                        ) : (
+                          <p className="saved-item-content">{item.content}</p>
+                        )}
+                        {item.createdAt && (
+                          <time
+                            className="saved-item-date"
+                            dateTime={normalizeSavedItemTimestamp(item.createdAt)}
+                          >
+                            Saved {formatSavedItemDate(item.createdAt)}
+                          </time>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )
+            })()}
           </div>
         </dialog>
       </section>
