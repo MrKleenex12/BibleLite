@@ -4,8 +4,7 @@
   "description": "This is my CS465 Final Project. I want to create a Bible app that lets users take notes and highlight verses.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
