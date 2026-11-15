@@ -1,12 +1,39 @@
 # BibleLite
-This is my CS465 Final Project. I want to create a Bible app that lets users take notes and highlight verses.
 
-## Accounts
+BibleLite is a Bible reader for reading chapters, highlighting verses, and saving notes.
 
-Sign up with an email and a password, or use **Try the demo** on the login card. This class demo deliberately stores passwords as plain text in the existing `passwordHash` column and compares them directly at login. It does not create server-side sessions or enforce account ownership on notes and highlights. Account selection only lasts until the page is reloaded. Never use a real or reused password, and do not deploy this version for real accounts.
+## User functions
 
-The demo button creates or reuses the `transaction-demo@example.com` database account. If `transaction.sql` has been run, its sample highlights and notes are available in that demo account.
+- **Read:** Choose a book, chapter, and translation; move between chapters.
+- **Accounts:** Sign up, log in, log out, or use the demo account.
+- **Highlight:** Select one or more verses and save them with a preset color. Edit the color or delete the saved highlight.
+- **Notes:** Save a note for one or more verses, optionally with a highlight color. Edit the note text or delete it.
+- **Saved items:** After login, saved highlights and notes load for the account. Open a verse's saved items to view them, including their saved dates. Edits and deletions apply to the entire saved item and all of its linked verses.
 
-## Highlighting verses
+## Run locally
 
-Select one or more verses in the web reader; the outline marks selected verses. The bottom highlight card groups adjacent selections into ranges (for example, `Genesis 1:1–3, 5`). Choose from eight preset colors and save. You must be logged in to save; existing active highlights are loaded for the selected account. The reader sends the selected verse IDs and color to `POST /highlights/user/:userId`.
+You need Node.js, npm, and `biblelite.db` in the repository root.
+
+In the first terminal, start the API server:
+
+```sh
+cd server
+npm install
+node index.js
+```
+
+In a second terminal, start the web app:
+
+```sh
+cd web
+npm install
+npm run dev
+```
+
+Open the local URL printed by Vite (usually `http://localhost:5173`). Keep both processes running; the web app proxies API requests to `http://localhost:8000`.
+
+## Demo and account limitations
+
+Use **Try the demo** to create or reuse the `transaction-demo@example.com` account. Running `transaction.sql` adds the sample saved items for that account.
+
+This class project stores passwords as plain text, does not create server-side sessions, and does not enforce account ownership on saved items. Account selection lasts only until the page reloads. Use test-only credentials; never use a real or reused password.
