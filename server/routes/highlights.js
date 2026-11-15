@@ -1,5 +1,14 @@
 import schemas from "../schema.js";
 
+function normalizeHighlightColor(hexcode) {
+    const digits = hexcode.startsWith('#') ? hexcode.slice(1) : hexcode;
+    const rgb = digits.length <= 4
+        ? [...digits.slice(0, 3)].map((digit) => digit + digit).join('')
+        : digits.slice(0, 6);
+
+    return `#${rgb.toLowerCase()}`;
+}
+
 export default function highlightRoutes(fastify, { db }) {
     const userHighlights = db.prepare(`
         SELECT h.id AS highlightId, h.color, h.createdAt, hv.isActive,
@@ -22,6 +31,12 @@ export default function highlightRoutes(fastify, { db }) {
         DELETE FROM highlights
         WHERE id = ? AND userId = ?
         RETURNING id AS highlightId;
+    `);
+    const updateUserHighlightColor = db.prepare(`
+        UPDATE highlights
+        SET color = ?
+        WHERE id = ? AND userId = ?
+        RETURNING id AS highlightId, color, createdAt;
     `);
     const setHighlightVerseActive = db.prepare(`
         UPDATE highlight_verses
@@ -89,6 +104,21 @@ export default function highlightRoutes(fastify, { db }) {
         }
     );
 
+    fastify.patch('/user/:userId/highlight/:highlightId',
+        { schema: schemas.highlightColorUpdate },
+        (req, reply) => {
+            const { userId, highlightId } = req.params;
+            const color = normalizeHighlightColor(req.body.color);
+            const updated = updateUserHighlightColor.get(color, highlightId, userId);
+
+            if (!updated) {
+                return reply.code(404).send({ error: 'Highlight not found' });
+            }
+
+            reply.send(updated);
+        }
+    );
+
     // Delete a user's saved highlight and its verse associations.
     fastify.delete('/user/:userId/highlight/:highlightId',
         { schema: schemas.userHighlight },
@@ -111,15 +141,9 @@ export default function highlightRoutes(fastify, { db }) {
             const { userId } = req.params;
             const { color: hexcode, verseIds } = req.body;
 
-            const digits = hexcode.startsWith('#') ? hexcode.slice(1) : hexcode;
-            const rgb = digits.length <= 4
-                ? [...digits.slice(0, 3)].map((digit) => digit + digit).join('')
-                : digits.slice(0, 6);
-            const color = `#${rgb.toLowerCase()}`;
-
             const highlight = createHighlightWithVerses(
                 userId,
-                color,
+                normalizeHighlightColor(hexcode),
                 [...new Set(verseIds)]
             );
 

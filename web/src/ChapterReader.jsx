@@ -37,6 +37,16 @@ function formatSavedItemDate(timestamp) {
   }).format(date)
 }
 
+function getHighlightColors(highlights) {
+  const colors = {}
+  for (const highlight of highlights) {
+    if (highlight.isActive && colors[highlight.verseId] === undefined) {
+      colors[highlight.verseId] = highlight.color
+    }
+  }
+  return colors
+}
+
 function formatVerseNumbers(verses) {
   const verseNumbers = [...new Set(verses.map((verse) => verse.verseNum))]
     .sort((left, right) => left - right)
@@ -103,16 +113,16 @@ async function getJson(path, signal) {
   return data
 }
 
-async function postJson(path, body) {
+async function mutateJson(path, method, body) {
   const response = await fetch(`/api${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
   })
 
   let data
   try {
-    data = await response.json()
+    data = response.status === 204 ? {} : await response.json()
   } catch {
     throw new Error('The server returned an invalid response.')
   }
@@ -122,6 +132,10 @@ async function postJson(path, body) {
   }
 
   return data
+}
+
+async function postJson(path, body) {
+  return mutateJson(path, 'POST', body)
 }
 
 function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
@@ -160,6 +174,10 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
     notes: [],
   })
   const [selectedSavedVerse, setSelectedSavedVerse] = useState(null)
+  const [savedItemEditor, setSavedItemEditor] = useState(null)
+  const [isSavingSavedItem, setIsSavingSavedItem] = useState(false)
+  const [savedItemError, setSavedItemError] = useState('')
+  const [savedItemNotice, setSavedItemNotice] = useState('')
   const selectorId = useId()
   const pickerTitleId = useId()
   const savedItemsTitleId = useId()
@@ -265,18 +283,15 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
           throw new Error('The saved notes response was not in the expected format.')
         }
 
-        const colors = {}
-        for (const highlight of highlightData.highlights) {
-          if (highlight.isActive && colors[highlight.verseId] === undefined) {
-            colors[highlight.verseId] = highlight.color
-          }
-        }
         setSavedItemsState({
           userId,
           highlights: highlightData.highlights,
           notes: noteData.notes,
         })
-        setSavedHighlightState({ userId, colors })
+        setSavedHighlightState({
+          userId,
+          colors: getHighlightColors(highlightData.highlights),
+        })
         setHighlightErrorUserId(userId)
         setHighlightError('')
       } catch (error) {
@@ -366,6 +381,134 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
         new Date(normalizeSavedItemTimestamp(right.createdAt)).getTime()
         - new Date(normalizeSavedItemTimestamp(left.createdAt)).getTime()
       )),
+    }
+  }
+
+  function startSavedItemEdit(item) {
+    setSavedItemError('')
+    setSavedItemNotice('')
+    setSavedItemEditor({
+      itemType: item.itemType,
+      id: item.itemType === 'note' ? item.id : item.highlightId,
+      value: item.itemType === 'note' ? item.content : item.color,
+    })
+  }
+
+  async function saveSavedItemEdit(event) {
+    event.preventDefault()
+    if (!account?.id || !savedItemEditor || isSavingSavedItem) {
+      return
+    }
+
+    const userId = String(account.id)
+    const value = savedItemEditor.itemType === 'note'
+      ? savedItemEditor.value.trim()
+      : savedItemEditor.value
+    if (!value) {
+      setSavedItemError('Enter a note before saving.')
+      return
+    }
+
+    setIsSavingSavedItem(true)
+    setSavedItemError('')
+    setSavedItemNotice('')
+    try {
+      if (savedItemEditor.itemType === 'note') {
+        const data = await mutateJson(
+          `/notes/user/${userId}/${savedItemEditor.id}`,
+          'PATCH',
+          { content: value },
+        )
+        if (!data?.noteId) {
+          throw new Error('The server did not confirm the note update.')
+        }
+
+        setSavedItemsState({
+          userId,
+          highlights: savedItems.highlights,
+          notes: savedItems.notes.map((note) => (
+            note.id === savedItemEditor.id ? { ...note, content: value } : note
+          )),
+        })
+      } else {
+        const data = await mutateJson(
+          `/highlights/user/${userId}/highlight/${savedItemEditor.id}`,
+          'PATCH',
+          { color: value },
+        )
+        if (!data?.highlightId || !data.color) {
+          throw new Error('The server did not confirm the highlight update.')
+        }
+
+        const highlights = savedItems.highlights.map((highlight) => (
+          highlight.highlightId === savedItemEditor.id
+            ? { ...highlight, color: data.color }
+            : highlight
+        ))
+        setSavedItemsState({ userId, highlights, notes: savedItems.notes })
+        setSavedHighlightState({
+          userId,
+          colors: getHighlightColors(highlights),
+        })
+      }
+
+      setSavedItemEditor(null)
+      setSavedItemNotice('Saved changes.')
+    } catch (error) {
+      setSavedItemError(error.message)
+    } finally {
+      setIsSavingSavedItem(false)
+    }
+  }
+
+  async function deleteSavedItem(item) {
+    if (!account?.id || isSavingSavedItem) {
+      return
+    }
+
+    const itemType = item.itemType
+    const itemId = itemType === 'note' ? item.id : item.highlightId
+    const label = itemType === 'note' ? 'note' : 'highlight'
+    if (!window.confirm(`Delete this ${label} from all verses linked to it? This cannot be undone.`)) {
+      return
+    }
+
+    const userId = String(account.id)
+    setIsSavingSavedItem(true)
+    setSavedItemError('')
+    setSavedItemNotice('')
+    try {
+      const path = itemType === 'note'
+        ? `/notes/user/${userId}/${itemId}`
+        : `/highlights/user/${userId}/highlight/${itemId}`
+      const data = await mutateJson(path, 'DELETE')
+      if (itemType === 'note' ? !data?.noteId : !data?.highlightId) {
+        throw new Error(`The server did not confirm the ${label} deletion.`)
+      }
+
+      if (itemType === 'note') {
+        setSavedItemsState({
+          userId,
+          highlights: savedItems.highlights,
+          notes: savedItems.notes.filter((note) => note.id !== itemId),
+        })
+      } else {
+        const highlights = savedItems.highlights.filter(
+          (highlight) => highlight.highlightId !== itemId,
+        )
+        setSavedItemsState({ userId, highlights, notes: savedItems.notes })
+        setSavedHighlightState({
+          userId,
+          colors: getHighlightColors(highlights),
+        })
+      }
+
+      setSavedItemEditor(null)
+      setSavedItemNotice(`${label[0].toUpperCase()}${label.slice(1)} deleted from all linked verses.`)
+    } catch (error) {
+      setSavedItemError(error.message)
+    } finally {
+      setIsSavingSavedItem(false)
     }
   }
 
@@ -854,7 +997,12 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
                         style={{
                           left: `calc(0.5rem + ${String(verse.verseNum).length * 0.38}em + 0.34rem)`,
                         }}
-                        onClick={() => setSelectedSavedVerse(verse)}
+                        onClick={() => {
+                          setSavedItemEditor(null)
+                          setSavedItemError('')
+                          setSavedItemNotice('')
+                          setSelectedSavedVerse(verse)
+                        }}
                       >
                         <span className="verse-saved-items-square" aria-hidden="true" />
                       </button>
@@ -1173,7 +1321,11 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
           className="saved-items-dialog"
           ref={savedItemsDialogRef}
           aria-labelledby={savedItemsTitleId}
-          onClose={() => setSelectedSavedVerse(null)}
+          onClose={() => {
+            setSelectedSavedVerse(null)
+            setSavedItemEditor(null)
+            setSavedItemError('')
+          }}
         >
           <div className="saved-items-card">
             <div className="chapter-picker-heading">
@@ -1189,42 +1341,164 @@ function ChapterReader({ account, headerSelectorTarget, onRequestLogin }) {
             {selectedSavedVerse && (() => {
               const verseSavedItems = getSavedItemsForVerse(selectedSavedVerse.id)
               return (
-                <ul className="saved-items-list">
-                  {verseSavedItems.items.map((item, index) => (
-                    <li key={`${item.itemType}-${item.itemType === 'note' ? item.id : item.highlightId}-${index}`}>
-                      {item.itemType === 'highlight' ? (
-                        <span
-                          className="saved-item-color"
-                          style={{ backgroundColor: item.color }}
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <span className="saved-item-note-icon" aria-hidden="true">N</span>
-                      )}
-                      <div>
-                        <p className="saved-item-type">
-                          {item.itemType === 'highlight' ? 'Highlight' : 'Note'}
-                        </p>
-                        {item.itemType === 'highlight' ? (
-                          <p className="saved-item-detail">
-                            {item.color}
-                            {item.isActive ? ' · Shown on verse' : ' · Hidden on verse'}
-                          </p>
-                        ) : (
-                          <p className="saved-item-content">{item.content}</p>
-                        )}
-                        {item.createdAt && (
-                          <time
-                            className="saved-item-date"
-                            dateTime={normalizeSavedItemTimestamp(item.createdAt)}
-                          >
-                            Saved {formatSavedItemDate(item.createdAt)}
-                          </time>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  {savedItemError && (
+                    <p className="saved-item-feedback error-message" role="alert">
+                      {savedItemError}
+                    </p>
+                  )}
+                  {savedItemNotice && (
+                    <p className="saved-item-feedback" role="status" aria-live="polite">
+                      {savedItemNotice}
+                    </p>
+                  )}
+                  {verseSavedItems.items.length === 0 ? (
+                    <p className="saved-items-empty">No saved items remain for this verse.</p>
+                  ) : (
+                    <ul className="saved-items-list" aria-busy={isSavingSavedItem}>
+                      {verseSavedItems.items.map((item, index) => {
+                        const itemId = item.itemType === 'note' ? item.id : item.highlightId
+                        const isEditing = savedItemEditor?.itemType === item.itemType
+                          && savedItemEditor.id === itemId
+                        const itemTypeLabel = item.itemType === 'note' ? 'note' : 'highlight'
+
+                        return (
+                          <li key={`${item.itemType}-${itemId}-${index}`}>
+                            {item.itemType === 'highlight' ? (
+                              <span
+                                className="saved-item-color"
+                                style={{ backgroundColor: item.color }}
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <span className="saved-item-note-icon" aria-hidden="true">N</span>
+                            )}
+                            <div className="saved-item-body">
+                              <div className="saved-item-heading">
+                                <p className="saved-item-type">
+                                  {item.itemType === 'highlight' ? 'Highlight' : 'Note'}
+                                </p>
+                                {item.createdAt && (
+                                  <time
+                                    className="saved-item-date"
+                                    dateTime={normalizeSavedItemTimestamp(item.createdAt)}
+                                  >
+                                    Saved {formatSavedItemDate(item.createdAt)}
+                                  </time>
+                                )}
+                              </div>
+                              {isEditing ? (
+                                <form
+                                  className="saved-item-edit-form"
+                                  onSubmit={saveSavedItemEdit}
+                                >
+                                  {item.itemType === 'note' ? (
+                                    <label htmlFor={`${selectorId}-saved-note-${itemId}`}>
+                                      Note
+                                      <textarea
+                                        id={`${selectorId}-saved-note-${itemId}`}
+                                        name="content"
+                                        value={savedItemEditor.value}
+                                        onChange={(event) => {
+                                          setSavedItemEditor((current) => (
+                                            current ? { ...current, value: event.target.value } : current
+                                          ))
+                                          setSavedItemError('')
+                                        }}
+                                        required
+                                        autoFocus
+                                        rows={3}
+                                        disabled={isSavingSavedItem}
+                                      />
+                                    </label>
+                                  ) : (
+                                    <fieldset className="saved-item-highlight-colors">
+                                      <legend>Highlight color</legend>
+                                      <div className="highlight-color-options">
+                                        {HIGHLIGHT_COLORS.map((color) => (
+                                          <button
+                                            className="highlight-color-option"
+                                            key={color.value}
+                                            type="button"
+                                            aria-label={`${color.name} highlight color`}
+                                            aria-pressed={savedItemEditor.value === color.value}
+                                            onClick={() => {
+                                              setSavedItemEditor((current) => (
+                                                current ? { ...current, value: color.value } : current
+                                              ))
+                                            }}
+                                            disabled={isSavingSavedItem}
+                                          >
+                                            <span
+                                              className="highlight-color-swatch"
+                                              style={{ backgroundColor: color.value }}
+                                            />
+                                            <span>{color.name}</span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </fieldset>
+                                  )}
+                                  <div className="saved-item-actions saved-item-actions-editing">
+                                    <button
+                                      className="saved-item-action"
+                                      type="button"
+                                      disabled={isSavingSavedItem}
+                                      onClick={() => {
+                                        setSavedItemEditor(null)
+                                        setSavedItemError('')
+                                      }}
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      className="saved-item-action saved-item-action-primary"
+                                      type="submit"
+                                      disabled={isSavingSavedItem}
+                                    >
+                                      {isSavingSavedItem ? 'Saving…' : 'Save changes'}
+                                    </button>
+                                  </div>
+                                </form>
+                              ) : (
+                                <>
+                                  {item.itemType === 'highlight' ? (
+                                    <p className="saved-item-detail">
+                                      {item.color}
+                                      {item.isActive ? ' · Shown on verse' : ' · Hidden on verse'}
+                                    </p>
+                                  ) : (
+                                    <p className="saved-item-content">{item.content}</p>
+                                  )}
+                                  <div className="saved-item-actions">
+                                    <button
+                                      className="saved-item-action"
+                                      type="button"
+                                      aria-label={`Edit ${itemTypeLabel} ${index + 1}`}
+                                      disabled={isSavingSavedItem}
+                                      onClick={() => startSavedItemEdit(item)}
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      className="saved-item-action saved-item-action-danger"
+                                      type="button"
+                                      aria-label={`Delete ${itemTypeLabel} ${index + 1} from all linked verses`}
+                                      disabled={isSavingSavedItem}
+                                      onClick={() => void deleteSavedItem(item)}
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </>
               )
             })()}
           </div>

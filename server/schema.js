@@ -18,6 +18,15 @@ const noteParams = {
     }
 };
 
+const userHighlightParams = {
+    type: 'object',
+    required: ['userId', 'highlightId'],
+    properties: {
+        userId: { type: 'integer', minimum: 1 },
+        highlightId: { type: 'integer', minimum: 1 }
+    }
+};
+
 const verseIdArray = {
     type: 'array',
     items: { type: 'integer', minimum: 1 }
@@ -50,12 +59,16 @@ const schemas = {
         }
     },
     userHighlight: {
-        params: {
+        params: userHighlightParams
+    },
+    highlightColorUpdate: {
+        params: userHighlightParams,
+        body: {
             type: 'object',
-            required: ['userId', 'highlightId'],
+            required: ['color'],
+            additionalProperties: false,
             properties: {
-                userId: { type: 'integer', minimum: 1 },
-                highlightId: { type: 'integer', minimum: 1 }
+                color: { type: 'string', pattern: '^#?(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$' }
             }
         }
     },
