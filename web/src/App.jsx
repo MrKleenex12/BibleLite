@@ -6,11 +6,17 @@ import './App.css'
 function App() {
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
   const [headerSelectorTarget, setHeaderSelectorTarget] = useState(null)
+  const [account, setAccount] = useState(null)
   const accountDialogRef = useRef(null)
   const accountPanelRef = useRef(null)
   const desktopEmailInputRef = useRef(null)
   const mobileEmailInputRef = useRef(null)
   const mobileAccountTitleId = useId()
+
+  function handleAccountChange(user) {
+    setAccount(user)
+    setIsAccountDialogOpen(false)
+  }
 
   function handleHeaderLogin() {
     if (window.matchMedia('(max-width: 900px)').matches) {
@@ -53,13 +59,18 @@ function App() {
           type="button"
           onClick={handleHeaderLogin}
         >
-          Log in
+          {account ? 'Account' : 'Log in'}
         </button>
       </header>
 
       <div className="home-layout">
         <ChapterReader headerSelectorTarget={headerSelectorTarget} />
-        <AccountPanel panelRef={accountPanelRef} emailInputRef={desktopEmailInputRef} />
+        <AccountPanel
+          account={account}
+          onAccountChange={handleAccountChange}
+          panelRef={accountPanelRef}
+          emailInputRef={desktopEmailInputRef}
+        />
       </div>
 
       <dialog
@@ -79,7 +90,12 @@ function App() {
             <path d="m6 6 12 12M18 6 6 18" />
           </svg>
         </button>
-        <AccountPanel headingId={mobileAccountTitleId} emailInputRef={mobileEmailInputRef} />
+        <AccountPanel
+          account={account}
+          headingId={mobileAccountTitleId}
+          onAccountChange={handleAccountChange}
+          emailInputRef={mobileEmailInputRef}
+        />
       </dialog>
     </main>
   )

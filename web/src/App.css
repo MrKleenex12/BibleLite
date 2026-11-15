@@ -405,6 +405,45 @@
   line-height: 1.45;
 }
 
+.account-separator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.25rem 0;
+  color: #899187;
+  font-size: 0.82rem;
+}
+
+.account-separator::before,
+.account-separator::after {
+  height: 1px;
+  flex: 1;
+  background: #e8e9e1;
+  content: "";
+}
+
+.demo-button {
+  min-height: 3rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid #cbd4c8;
+  border-radius: 0.6rem;
+  color: #315d49;
+  background: #fff;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.demo-button:hover:not(:disabled) {
+  background: #f3f6f0;
+}
+
+.account-email {
+  margin: 0 0 1rem;
+  color: #46534b;
+  overflow-wrap: anywhere;
+}
+
 .submit-button {
   min-height: 3rem;
   padding: 0.7rem 1rem;
@@ -417,8 +456,14 @@
   cursor: pointer;
 }
 
-.submit-button:hover {
+.submit-button:hover:not(:disabled) {
   background: #264b39;
+}
+
+.submit-button:disabled,
+.demo-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .form-notice {
