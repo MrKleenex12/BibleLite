@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import AccountPanel from './AccountPanel.jsx'
 import ChapterReader from './ChapterReader.jsx'
 import ComparePage from './ComparePage.jsx'
+import ReportPage from './ReportPage.jsx'
 import SearchPage from './SearchPage.jsx'
 import './App.css'
 
@@ -9,11 +10,16 @@ import './App.css'
 
 const SEARCH_HASH = '#/search'
 const COMPARE_HASH = '#/compare'
+const REPORT_HASH = '#/report'
 
 // Reads which page the URL hash selects.
 function readPageFromHash() {
   if (window.location.hash === SEARCH_HASH) {
     return 'search'
+  }
+
+  if (window.location.hash === REPORT_HASH) {
+    return 'report'
   }
 
   return window.location.hash === COMPARE_HASH ? 'compare' : 'reader'
@@ -84,6 +90,7 @@ function App() {
         <div className="header-actions">
           <a className="header-search-link" href={COMPARE_HASH}>Compare</a>
           <a className="header-search-link" href={SEARCH_HASH}>Search</a>
+          <a className="header-search-link" href={REPORT_HASH}>Report</a>
           <button
             className="header-login-button"
             type="button"
@@ -124,6 +131,8 @@ function App() {
       <div className="home-layout">
         {page === 'search' ? (
           <SearchPage onSelectResult={openPassage} />
+        ) : page === 'report' ? (
+          <ReportPage account={account} onRequestLogin={() => setIsAccountDropdownOpen(true)} />
         ) : page === 'compare' ? (
           <ComparePage />
         ) : (

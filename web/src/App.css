@@ -1624,3 +1624,98 @@ dialog:modal {
   display: grid;
   gap: 1.5rem;
 }
+
+/* --- Highlight report table --- */
+
+.table-wrapper {
+  overflow: auto;
+  max-inline-size: 100%;
+  max-block-size: min(40rem, 80vh);
+  container-type: inline-size;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: start;
+}
+
+.report-table caption {
+  padding-block-end: 0.75rem;
+  color: #777e72;
+  font-size: 0.95rem;
+  text-align: start;
+}
+
+.report-table th,
+.report-table td {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid #e8e9e1;
+  text-align: start;
+}
+
+.report-table thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+}
+
+.report-table thead th,
+.report-table tbody th {
+  background: #f8f8f3;
+}
+
+.report-table tbody th {
+  position: sticky;
+  inset-inline-start: 0;
+}
+
+@container (width < 600px) {
+  .report-table,
+  .report-table thead,
+  .report-table tbody,
+  .report-table tr,
+  .report-table th,
+  .report-table td {
+    display: block;
+  }
+
+  .report-table thead {
+    display: none;
+  }
+
+  .report-table tr {
+    margin-block-end: 1rem;
+    border: 1px solid #e8e9e1;
+  }
+
+  .report-table tbody th {
+    inset-block-start: 0;
+    z-index: 2;
+  }
+
+  .report-table {
+    --label-color: "Color";
+    --label-highlights: "Highlights";
+    --label-verses: "Verses";
+  }
+
+  .report-table td:nth-child(2)::before {
+    content: var(--label-color) ": ";
+  }
+
+  .report-table td:nth-child(3)::before {
+    content: var(--label-highlights) ": ";
+  }
+
+  .report-table td:nth-child(4)::before {
+    content: var(--label-verses) ": ";
+  }
+}
+
+.report-color {
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: ui-monospace, monospace;
+}
