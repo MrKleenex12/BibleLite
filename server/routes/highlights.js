@@ -12,7 +12,7 @@ function normalizeHighlightColor(hexcode) {
 export default function highlightRoutes(fastify, { db }) {
     const userHighlights = db.prepare(`
         SELECT h.id AS highlightId, h.color, h.createdAt, hv.isActive,
-               v.id AS verseId, t.abbreviation, b.name AS book, v.chapterNum, v.verseNum, v.content
+               v.id AS verseId, v.bookId, v.translationId, t.abbreviation, b.name AS book, v.chapterNum, v.verseNum, v.content
         FROM highlights h
         JOIN highlight_verses hv ON hv.highlightId = h.id
         JOIN verses v ON v.id = hv.verseId

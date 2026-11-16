@@ -1,4 +1,10 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
+import {
+  formatSavedItemDate,
+  formatVerseNumbers,
+  groupAdjacentVerses,
+  normalizeSavedItemTimestamp,
+} from './verseUtils.js'
 
 // --- Request helper ---
 
@@ -14,11 +20,38 @@ async function fetchJson(path, signal) {
   return data
 }
 
+// --- Preview helpers ---
+
+// Builds the lookup key shared by a report row and its highlighted verses.
+function makeGroupKey(book, color) {
+  return `${book}|${color}`
+}
+
+// Groups the user's highlighted verses by book and color, then by highlight, so each report row lists its own highlights together.
+function groupVersesByBookAndColor(highlights) {
+  const groups = {}
+
+  for (const verse of highlights) {
+    const key = makeGroupKey(verse.book, verse.color)
+
+    groups[key] = groups[key] ?? new Map()
+
+    const highlightVerses = groups[key].get(verse.highlightId) ?? []
+
+    highlightVerses.push(verse)
+    groups[key].set(verse.highlightId, highlightVerses)
+  }
+
+  return groups
+}
+
 // --- Highlight report page ---
 
 // Shows how many highlights and verses the signed-in user has per book and color.
 function ReportPage({ account, onRequestLogin }) {
   const [rows, setRows] = useState(null)
+  const [versesByGroup, setVersesByGroup] = useState({})
+  const [expandedGroups, setExpandedGroups] = useState(new Set())
   const [errorMessage, setErrorMessage] = useState('')
   const userId = account?.id
 
@@ -35,9 +68,14 @@ function ReportPage({ account, onRequestLogin }) {
       setErrorMessage('')
 
       try {
-        const data = await fetchJson(`/highlights/user/${userId}/report`, controller.signal)
+        const [reportData, highlightData] = await Promise.all([
+          fetchJson(`/highlights/user/${userId}/report`, controller.signal),
+          fetchJson(`/highlights/user/${userId}`, controller.signal),
+        ])
 
-        setRows(data.report)
+        setVersesByGroup(groupVersesByBookAndColor(highlightData.highlights))
+        setExpandedGroups(new Set())
+        setRows(reportData.report)
       } catch (error) {
         if (error.name !== 'AbortError') {
           setErrorMessage(error.message)
@@ -49,6 +87,19 @@ function ReportPage({ account, onRequestLogin }) {
 
     return () => controller.abort()
   }, [userId])
+
+  // Opens or closes the verse preview under one report row.
+  function togglePreview(groupKey) {
+    setExpandedGroups((previous) => {
+      const next = new Set(previous)
+
+      if (!next.delete(groupKey)) {
+        next.add(groupKey)
+      }
+
+      return next
+    })
+  }
 
   return (
     <section className="reader reader-wide" aria-labelledby="report-title">
@@ -90,21 +141,67 @@ function ReportPage({ account, onRequestLogin }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={`${row.book}-${row.color}`}>
-                  <th scope="row">{row.book}</th>
-                  <td>
-                    <span
-                      className="report-color"
-                      style={{ backgroundColor: row.color.startsWith('#') ? row.color : `#${row.color}` }}
-                    >
-                      {row.color}
-                    </span>
-                  </td>
-                  <td>{row.highlight_count}</td>
-                  <td>{row.verse_count}</td>
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const groupKey = makeGroupKey(row.book, row.color)
+                const isExpanded = expandedGroups.has(groupKey)
+                const previewId = `report-preview-${row.userId ?? userId}-${row.book}-${row.color}`.replace(/\W/g, '-')
+                const color = row.color.startsWith('#') ? row.color : `#${row.color}`
+
+                return (
+                  <Fragment key={groupKey}>
+                    <tr className="report-row" onClick={() => togglePreview(groupKey)}>
+                      <th scope="row">
+                        <button
+                          className="report-toggle"
+                          type="button"
+                          aria-expanded={isExpanded}
+                          aria-controls={previewId}
+                        >
+                          {row.book}
+                        </button>
+                      </th>
+                      <td>
+                        <span className="report-color" style={{ backgroundColor: color }}>
+                          {row.color}
+                        </span>
+                      </td>
+                      <td>{row.highlight_count}</td>
+                      <td>{row.verse_count}</td>
+                    </tr>
+                    <tr className="report-preview-row" id={previewId} hidden={!isExpanded}>
+                      <td colSpan={4}>
+                        <ul className="report-preview">
+                          {[...(versesByGroup[groupKey]?.entries() ?? [])].map(([highlightId, verses]) => (
+                            <li key={highlightId}>
+                              <p className="report-preview-meta">
+                                <time dateTime={normalizeSavedItemTimestamp(verses[0].createdAt)}>
+                                  {formatSavedItemDate(verses[0].createdAt)}
+                                </time>
+                                {` · ${verses.length} ${verses.length === 1 ? 'verse' : 'verses'}`}
+                              </p>
+                              {groupAdjacentVerses(verses).map((passage) => (
+                                <p key={passage[0].verseId}>
+                                  <strong>
+                                    {`${passage[0].book} ${passage[0].chapterNum}:${formatVerseNumbers(passage)} (${passage[0].abbreviation})`}
+                                  </strong>{' '}
+                                  <span>
+                                    {passage.map((verse) => (
+                                      <Fragment key={verse.verseId}>
+                                        <sup className="report-verse-number">{verse.verseNum}</sup>
+                                        {verse.content}{' '}
+                                      </Fragment>
+                                    ))}
+                                  </span>
+                                </p>
+                              ))}
+                            </li>
+                          ))}
+                        </ul>
+                      </td>
+                    </tr>
+                  </Fragment>
+                )
+              })}
             </tbody>
           </table>
         </div>

@@ -1719,3 +1719,62 @@ dialog:modal {
   border-radius: 0.25rem;
   font-family: ui-monospace, monospace;
 }
+
+.report-toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.report-toggle::before {
+  content: "▸ ";
+}
+
+.report-toggle[aria-expanded="true"]::before {
+  content: "▾ ";
+}
+
+.report-preview {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-preview li {
+  padding-block: 0.5rem;
+  border-bottom: 1px solid #e8e9e1;
+}
+
+.report-preview p {
+  margin: 0;
+}
+
+.report-row {
+  cursor: pointer;
+}
+
+.report-row:hover th,
+.report-row:hover td {
+  background: #f1f2ea;
+}
+
+.report-preview-row[hidden] {
+  display: none;
+}
+
+.report-preview-meta {
+  color: #777e72;
+  font-size: 0.85rem;
+}
+
+.report-verse-number {
+  margin-inline-end: 0.2rem;
+  color: #777e72;
+  font-weight: 600;
+}
