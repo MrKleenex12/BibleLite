@@ -68,7 +68,7 @@ The server opens `../biblelite.db` relative to its working directory, so run `no
 ## Major Application Operations
 
 - Browse chapters by book, chapter, and translation.
-- Sign up, log in, use the demo account, and log out.
+- Sign up, log in, use the demo account, and log out. The login stays after a page reload in the same tab.
 - Create highlights on selected verses using preset colors; edit colors or delete highlights.
 - Create notes associated with one or more verses; edit or delete notes.
 - Open a verse's saved-items list to see its highlights and notes, ordered newest first with saved dates.
@@ -78,5 +78,5 @@ The server opens `../biblelite.db` relative to its working directory, so run `no
 
 - The included database data contains only KJV and WEB translations. More translations exist, but most modern translations are copywrited. More translations available from [Biblehub downloads](https://biblehub.com/downloads.htm).
 - Passwords are stored as plain text. This is a class demo and must not be used with real or reused passwords.
-- The app does not use server-side sessions or enforce account ownership on saved-item API operations. The selected account is kept only in React memory. It is not stored in cookies or `sessionStorage` and is lost when the page reloads.
+- The app does not use server-side sessions or enforce account ownership on saved-item API operations. The selected account (id, name, and email; never the password) is saved in the browser's `sessionStorage`, so it survives page reloads in the same tab and is cleared on log out or when the tab closes. The browser can edit this value, so it is not a secure login.
 - The included setup script replaces its generated database in `final-submission-files/`; moving it to the repository root replaces the existing root database.

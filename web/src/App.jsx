@@ -6,6 +6,37 @@ import ReportPage from './ReportPage.jsx'
 import SearchPage from './SearchPage.jsx'
 import './App.css'
 
+// --- Account storage ---
+
+const ACCOUNT_STORAGE_KEY = 'account'
+
+// Reads the account saved for this tab, or null when none is saved or it can't be parsed.
+function readSavedAccount() {
+  // Storage can throw when the browser blocks it, so a failure means "no saved account".
+  try {
+    const savedText = sessionStorage.getItem(ACCOUNT_STORAGE_KEY)
+
+    // Storage holds only strings, so the account comes back through JSON.parse.
+    return savedText ? JSON.parse(savedText) : null
+  } catch {
+    return null
+  }
+}
+
+// Saves the account for this tab, or clears it when the user logs out.
+function saveAccount(user) {
+  // Storage can throw when it is blocked or full; the login still works for this visit.
+  try {
+    if (user) {
+      sessionStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(user))
+    } else {
+      sessionStorage.removeItem(ACCOUNT_STORAGE_KEY)
+    }
+  } catch {
+    // Nothing to recover: the account stays in React state only.
+  }
+}
+
 // --- Page routing ---
 
 const SEARCH_HASH = '#/search'
@@ -30,12 +61,13 @@ function App() {
   const [passage, setPassage] = useState(null)
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false)
   const [headerSelectorTarget, setHeaderSelectorTarget] = useState(null)
-  const [account, setAccount] = useState(null)
+  const [account, setAccount] = useState(readSavedAccount)
   const accountDropdownRef = useRef(null)
   const accountDropdownEmailRef = useRef(null)
   const accountTitleId = useId()
 
   function handleAccountChange(user) {
+    saveAccount(user)
     setAccount(user)
     setIsAccountDropdownOpen(false)
   }
